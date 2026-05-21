@@ -17,22 +17,25 @@ limitations under the License.
 package v1alpha1
 
 import (
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// HermesAgentHermes defines the hermes-specific section of the spec.
+type HermesAgentHermes struct {
+	// config holds the Hermes agent config.yml configuration.
+	// +optional
+	Config *apiextensionsv1.JSON `json:"config,omitempty"`
+}
+
 // HermesAgentSpec defines the desired state of HermesAgent
 type HermesAgentSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-
-	// foo is an example field of HermesAgent. Edit hermesagent_types.go to remove/update
+	// hermes defines the Hermes agent configuration.
 	// +optional
-	Foo *string `json:"foo,omitempty"`
+	Hermes *HermesAgentHermes `json:"hermes,omitempty"`
 }
 
 // HermesAgentStatus defines the observed state of HermesAgent.
