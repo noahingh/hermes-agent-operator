@@ -30,3 +30,5 @@ go.work
 *.kubeconfig
 
 .claude/
+
+hermes-agent-helm-chart/
