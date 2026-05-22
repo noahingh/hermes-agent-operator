@@ -156,7 +156,7 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 
 		initContainers = []corev1.Container{
 			{
-				Name:            "bootstrap-config",
+				Name:            "init-config",
 				Image:           "nousresearch/hermes-agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command:         []string{"/bin/sh", "-ec"},
