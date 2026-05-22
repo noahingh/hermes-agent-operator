@@ -23,6 +23,7 @@ import (
 	"noahingh/hermes-agent-operator/internal/usecase"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +38,7 @@ type HermesAgentReconciler struct {
 // +kubebuilder:rbac:groups=agents.hermes-agent-operator.xyz,resources=hermesagents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=agents.hermes-agent-operator.xyz,resources=hermesagents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=agents.hermes-agent-operator.xyz,resources=hermesagents/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 
 func (r *HermesAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -55,6 +57,7 @@ func (r *HermesAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *HermesAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&agentsv1alpha1.HermesAgent{}).
+		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.StatefulSet{}).
 		Named("hermesagent").
 		Complete(r)
