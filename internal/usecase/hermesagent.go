@@ -28,9 +28,7 @@ func NewHermesAgentUseCase(kube Kubernetes) *HermesAgentUseCase {
 }
 
 func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam) error {
-	ha, err := u.kube.GetHermesAgent(ctx, GetHermesAgentParam{
-		NamespacedName: param.NamespacedName,
-	})
+	ha, err := u.kube.GetHermesAgent(ctx, GetHermesAgentParam(param))
 	if err != nil {
 		return err
 	}
@@ -88,7 +86,6 @@ func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*co
 		Data: data,
 	}, nil
 }
-
 
 func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
 	sts, err := u.kube.GetStatefulSet(ctx, GetStatefulSetParam{

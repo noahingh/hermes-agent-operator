@@ -19,8 +19,8 @@ type KubernetesClient struct {
 	scheme *runtime.Scheme
 }
 
-func NewKubernetesClient(client client.Client, scheme *runtime.Scheme) *KubernetesClient {
-	return &KubernetesClient{client: client, scheme: scheme}
+func NewKubernetesClient(c client.Client, scheme *runtime.Scheme) *KubernetesClient {
+	return &KubernetesClient{client: c, scheme: scheme}
 }
 
 func (k *KubernetesClient) GetHermesAgent(ctx context.Context, param usecase.GetHermesAgentParam) (*agentsv1alpha1.HermesAgent, error) {
@@ -77,4 +77,3 @@ func (k *KubernetesClient) CreateStatefulSetOwnedByHermesAgent(ctx context.Conte
 func (k *KubernetesClient) UpdateStatefulSet(ctx context.Context, param usecase.UpdateStatefulSetParam) error {
 	return k.client.Update(ctx, param.StatefulSet)
 }
-
