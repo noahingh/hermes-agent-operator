@@ -148,10 +148,6 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 					},
 				},
 			},
-			corev1.Volume{
-				Name:         "tmp",
-				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-			},
 		)
 
 		mainVolumeMounts = append(mainVolumeMounts,
@@ -176,7 +172,6 @@ fi
 				VolumeMounts: []corev1.VolumeMount{
 					{Name: "data", MountPath: "/opt/data"},
 					{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
-					{Name: "tmp", MountPath: "/tmp"},
 				},
 			},
 		}
