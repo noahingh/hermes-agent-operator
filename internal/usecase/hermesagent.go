@@ -32,7 +32,9 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 	if err != nil {
 		return err
 	}
-
+	if ha == nil {
+		return nil
+	}
 
 	sts, err := u.kube.GetStatefulSet(ctx, GetStatefulSetParam{
 		NamespacedName: param.NamespacedName,
@@ -41,16 +43,16 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 		return err
 	}
 
-	if sts != nil {
-		// TODO: replace with update logic
-		return nil
-	}
+	desired := u.buildStatefulSet(ha)
 
-	sts = u.buildStatefulSet(ha)
+	if sts != nil {
+		desired.ResourceVersion = sts.ResourceVersion
+		return u.kube.UpdateStatefulSet(ctx, UpdateStatefulSetParam{StatefulSet: desired})
+	}
 
 	return u.kube.CreateStatefulSetOwnedByHermesAgent(ctx, CreateStatefulSetOfHermesAgentParam{
 		HermesAgent: ha,
-		StatefulSet: sts,
+		StatefulSet: desired,
 	})
 }
 
@@ -114,6 +116,5 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 			},
 		},
 	}
-
 }
 

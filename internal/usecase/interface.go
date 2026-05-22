@@ -13,6 +13,7 @@ type Kubernetes interface {
 
 	GetStatefulSet(ctx context.Context, param GetStatefulSetParam) (*appsv1.StatefulSet, error)
 	CreateStatefulSetOwnedByHermesAgent(ctx context.Context, param CreateStatefulSetOfHermesAgentParam) error
+	UpdateStatefulSet(ctx context.Context, param UpdateStatefulSetParam) error
 }
 
 type GetHermesAgentParam struct {
@@ -25,5 +26,9 @@ type GetStatefulSetParam struct {
 
 type CreateStatefulSetOfHermesAgentParam struct {
 	HermesAgent *agentsv1alpha1.HermesAgent
+	StatefulSet *appsv1.StatefulSet
+}
+
+type UpdateStatefulSetParam struct {
 	StatefulSet *appsv1.StatefulSet
 }

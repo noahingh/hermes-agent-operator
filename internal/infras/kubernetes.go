@@ -50,3 +50,7 @@ func (k *KubernetesClient) CreateStatefulSetOwnedByHermesAgent(ctx context.Conte
 	}
 	return k.client.Create(ctx, param.StatefulSet)
 }
+
+func (k *KubernetesClient) UpdateStatefulSet(ctx context.Context, param usecase.UpdateStatefulSetParam) error {
+	return k.client.Update(ctx, param.StatefulSet)
+}
