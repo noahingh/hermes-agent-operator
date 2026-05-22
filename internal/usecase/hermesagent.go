@@ -108,10 +108,56 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 	})
 }
 
+func persistence(ha *agentsv1alpha1.HermesAgent) *agentsv1alpha1.HermesPersistence {
+	if ha.Spec.Hermes == nil {
+		return nil
+	}
+	if ha.Spec.Hermes.Storage == nil {
+		return nil
+	}
+	return ha.Spec.Hermes.Storage.Persistence
+}
+
+func (u *HermesAgentUseCase) buildDataVolume(ha *agentsv1alpha1.HermesAgent) (
+	mount corev1.VolumeMount,
+	emptyDir *corev1.Volume,
+	pvcTemplate *corev1.PersistentVolumeClaim,
+) {
+	mount = corev1.VolumeMount{Name: "data", MountPath: "/opt/data"}
+	p := persistence(ha)
+	if p != nil && p.Enabled {
+		size := resource.MustParse("10Gi")
+		if p.Size != nil {
+			size = *p.Size
+		}
+
+		pvc := &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{Name: "data"},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: size,
+					},
+				},
+				StorageClassName: p.StorageClassName,
+			},
+		}
+		return mount, nil, pvc
+	}
+	vol := &corev1.Volume{
+		Name:         "data",
+		VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+	}
+	return mount, vol, nil
+}
+
 func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *appsv1.StatefulSet {
 	replicas := int32(1)
 	dshmSize := resource.MustParse("1Gi")
 	hasConfig := ha.Spec.Hermes != nil && ha.Spec.Hermes.Config != nil
+
+	dataMount, dataEmptyDir, dataPVC := u.buildDataVolume(ha)
 
 	volumes := []corev1.Volume{
 		{
@@ -124,32 +170,26 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 			},
 		},
 	}
+	if dataEmptyDir != nil {
+		volumes = append(volumes, *dataEmptyDir)
+	}
 
 	mainVolumeMounts := []corev1.VolumeMount{
 		{Name: "dshm", MountPath: "/dev/shm"},
+		dataMount,
 	}
 
 	var initContainers []corev1.Container
 
 	if hasConfig {
-		volumes = append(volumes,
-			corev1.Volume{
-				Name:         "data",
-				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-			},
-			corev1.Volume{
-				Name: "bootstrap",
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: configMapName(ha)},
-					},
+		volumes = append(volumes, corev1.Volume{
+			Name: "bootstrap",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: configMapName(ha)},
 				},
 			},
-		)
-
-		mainVolumeMounts = append(mainVolumeMounts,
-			corev1.VolumeMount{Name: "data", MountPath: "/opt/data"},
-		)
+		})
 
 		initContainers = []corev1.Container{
 			{
@@ -174,7 +214,7 @@ fi
 		}
 	}
 
-	return &appsv1.StatefulSet{
+	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ha.Name,
 			Namespace: ha.Namespace,
@@ -219,6 +259,12 @@ fi
 			},
 		},
 	}
+
+	if dataPVC != nil {
+		sts.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{*dataPVC}
+	}
+
+	return sts
 }
 
 func configMapName(ha *agentsv1alpha1.HermesAgent) string {

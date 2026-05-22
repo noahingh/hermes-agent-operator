@@ -40,6 +40,7 @@ type HermesAgentReconciler struct {
 // +kubebuilder:rbac:groups=agents.hermes-agent-operator.xyz,resources=hermesagents/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
 
 func (r *HermesAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	uc := usecase.NewHermesAgentUseCase(infras.NewKubernetesClient(r.Client, r.Scheme))

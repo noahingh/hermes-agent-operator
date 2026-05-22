@@ -18,24 +18,48 @@ package v1alpha1
 
 import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// HermesAgentHermes defines the hermes-specific section of the spec.
-type HermesAgentHermes struct {
+// HermesPersistence configures persistent volume claims for the Hermes agent.
+type HermesPersistence struct {
+	// enabled turns on a PersistentVolumeClaim for /opt/data.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+	// size is the storage request for the PVC (e.g. "10Gi"). Defaults to 10Gi.
+	// +optional
+	Size *resource.Quantity `json:"size,omitempty"`
+	// storageClassName selects the StorageClass; omit to use the cluster default.
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
+}
+
+// HermesStorage defines storage options for the Hermes agent.
+type HermesStorage struct {
+	// persistence configures a PersistentVolumeClaim for agent data.
+	// +optional
+	Persistence *HermesPersistence `json:"persistence,omitempty"`
+}
+
+// Hermes defines the hermes-specific section of the spec.
+type Hermes struct {
 	// config holds the Hermes agent config.yml configuration.
 	// +optional
 	Config *apiextensionsv1.JSON `json:"config,omitempty"`
+	// storage configures persistent storage for the agent.
+	// +optional
+	Storage *HermesStorage `json:"storage,omitempty"`
 }
 
 // HermesAgentSpec defines the desired state of HermesAgent
 type HermesAgentSpec struct {
 	// hermes defines the Hermes agent configuration.
 	// +optional
-	Hermes *HermesAgentHermes `json:"hermes,omitempty"`
+	Hermes *Hermes `json:"hermes,omitempty"`
 }
 
 // HermesAgentStatus defines the observed state of HermesAgent.
