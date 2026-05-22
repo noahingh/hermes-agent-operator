@@ -70,6 +70,26 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 	})
 }
 
+func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
+	data := map[string]string{}
+	if ha.Spec.Hermes != nil && ha.Spec.Hermes.Config != nil {
+		yamlBytes, err := sigsyaml.JSONToYAML(ha.Spec.Hermes.Config.Raw)
+		if err != nil {
+			return nil, fmt.Errorf("converting config to YAML: %w", err)
+		}
+		data["config.yaml"] = string(yamlBytes)
+	}
+
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName(ha),
+			Namespace: ha.Namespace,
+		},
+		Data: data,
+	}, nil
+}
+
+
 func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
 	sts, err := u.kube.GetStatefulSet(ctx, GetStatefulSetParam{
 		NamespacedName: types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace},
@@ -89,25 +109,6 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 		HermesAgent: ha,
 		StatefulSet: desired,
 	})
-}
-
-func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
-	data := map[string]string{}
-	if ha.Spec.Hermes != nil && ha.Spec.Hermes.Config != nil {
-		yamlBytes, err := sigsyaml.JSONToYAML(ha.Spec.Hermes.Config.Raw)
-		if err != nil {
-			return nil, fmt.Errorf("converting config to YAML: %w", err)
-		}
-		data["config.yaml"] = string(yamlBytes)
-	}
-
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapName(ha),
-			Namespace: ha.Namespace,
-		},
-		Data: data,
-	}, nil
 }
 
 func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *appsv1.StatefulSet {
