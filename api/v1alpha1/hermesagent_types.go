@@ -38,6 +38,13 @@ type HermesPersistence struct {
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
+func (p *HermesPersistence) GetSize() resource.Quantity {
+	if p != nil && p.Size != nil {
+		return *p.Size
+	}
+	return resource.MustParse("10Gi")
+}
+
 // HermesStorage defines storage options for the Hermes agent.
 type HermesStorage struct {
 	// persistence configures a PersistentVolumeClaim for agent data.
@@ -104,6 +111,26 @@ type HermesAgent struct {
 	// +optional
 	Status HermesAgentStatus `json:"status,omitzero"`
 }
+
+func (h *HermesAgent) GetConfigMapName() string {
+	return h.Name + "-config"
+}
+
+func (h *HermesAgent) GetHermesConfig() *apiextensionsv1.JSON {
+	if h.Spec.Hermes == nil {
+		return nil
+	}
+	return h.Spec.Hermes.Config
+}
+
+// GetPersistence returns the persistence configuration, or nil if not set.
+func (h *HermesAgent) GetHermesPersistence() *HermesPersistence {
+	if h.Spec.Hermes == nil || h.Spec.Hermes.Storage == nil {
+		return nil
+	}
+	return h.Spec.Hermes.Storage.Persistence
+}
+
 
 // +kubebuilder:object:root=true
 
