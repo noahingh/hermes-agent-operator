@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	agentsv1alpha1 "noahingh/hermes-agent-operator/api/v1alpha1"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	sigsyaml "sigs.k8s.io/yaml"
 )
+
+const workspacePathSeparator = "--"
 
 type HermesAgentUseCase struct {
 	kube Kubernetes
@@ -77,6 +80,12 @@ func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*co
 		}
 		data["config.yaml"] = string(yamlBytes)
 	}
+	if hw := ha.GetHermesWorkspace(); hw != nil {
+		for path, content := range hw.Files {
+			key := "workspace." + strings.ReplaceAll(path, "/", workspacePathSeparator)
+			data[key] = content
+		}
+	}
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -123,6 +132,14 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 				},
 			},
 		},
+		{
+		Name: "bootstrap",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: ha.GetConfigMapName()},
+			},
+		},
+		},
 	}
 	pvc := []corev1.PersistentVolumeClaim{}
 
@@ -148,40 +165,53 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 		})
 	}
 
-	// If a config is provided, mount it via an init container that copies the config to the data volume. 
-	// This allows the agent to write to the config file if needed.
-	hc := ha.GetHermesConfig()
-	if hc != nil {
-		volumes = append(volumes, corev1.Volume{
-			Name: "bootstrap",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: ha.GetConfigMapName()},
-				},
+	// If config is provided, add an init container to copy config.yaml to the shared volume.
+	if hc := ha.GetHermesConfig(); hc != nil {
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "init-config",
+			Image:           "nousresearch/hermes-agent:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-ec"},
+			Args: []string{`set -eu
+mkdir -p "/opt/data/home"
+cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
+`},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+				{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
 			},
 		})
+	}
 
-		initContainers = []corev1.Container{
-			{
-				Name:            "init-config",
-				Image:           "nousresearch/hermes-agent:latest",
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command:         []string{"/bin/sh", "-ec"},
-				Args: []string{`set -eu
+	// If workspace files are provided, add an init container to copy them to the shared volume. 
+	// The file keys in the ConfigMap are in the format "workspace.<path>" where "/" in the path is replaced with "__" to be a valid ConfigMap key.
+	if hw := ha.GetHermesWorkspace(); hw != nil && len(hw.Files) > 0 {
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "init-workspace",
+			Image:           "nousresearch/hermes-agent:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-ec"},
+			Args: []string{fmt.Sprintf(`set -eu
 mkdir -p "/opt/data/home"
-if [ -f "/bootstrap/config.yaml" ]; then
-  cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
-fi
-`},
-				Env: []corev1.EnvVar{
-					{Name: "HERMES_HOME", Value: "/opt/data"},
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{Name: "data", MountPath: "/opt/data"},
-					{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
-				},
+for f in /bootstrap/workspace.*; do
+  [ -f "$f" ] || continue
+  relpath=$(basename "$f" | sed 's/^workspace\.//' | sed 's/%s/\//g')
+  target="/opt/data/home/$relpath"
+  mkdir -p "$(dirname "$target")"
+  cp "$f" "$target"
+done
+`, workspacePathSeparator)},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
 			},
-		}
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+				{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
+			},
+		})
 	}
 
 	sts := &appsv1.StatefulSet{
@@ -236,5 +266,3 @@ fi
 
 	return sts
 }
-
-	

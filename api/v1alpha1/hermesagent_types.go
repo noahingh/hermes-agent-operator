@@ -52,6 +52,14 @@ type HermesStorage struct {
 	Persistence *HermesPersistence `json:"persistence,omitempty"`
 }
 
+// HermesWorkspace defines files to seed in the agent workspace.
+type HermesWorkspace struct {
+	// files is a map of file path to content.
+	// Paths may contain "/" for subdirectories (e.g. "skills/test/SKILL.md").
+	// +optional
+	Files map[string]string `json:"files,omitempty"`
+}
+
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
 	// config holds the Hermes agent config.yml configuration.
@@ -60,6 +68,9 @@ type Hermes struct {
 	// storage configures persistent storage for the agent.
 	// +optional
 	Storage *HermesStorage `json:"storage,omitempty"`
+	// workspace defines files to seed in the agent's home directory.
+	// +optional
+	Workspace *HermesWorkspace `json:"workspace,omitempty"`
 }
 
 // HermesAgentSpec defines the desired state of HermesAgent
@@ -131,6 +142,13 @@ func (h *HermesAgent) GetHermesPersistence() *HermesPersistence {
 	return h.Spec.Hermes.Storage.Persistence
 }
 
+// GetHermesWorkspace returns the workspace configuration, or nil if not set.
+func (h *HermesAgent) GetHermesWorkspace() *HermesWorkspace {
+	if h.Spec.Hermes == nil {
+		return nil
+	}
+	return h.Spec.Hermes.Workspace
+}
 
 // +kubebuilder:object:root=true
 

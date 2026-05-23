@@ -6,4 +6,12 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: hermesagent-sample
 spec:
-  # TODO(user): Add fields here
+  hermes:
+    workspace:
+      files:
+        USER.md: |
+          # User
+          This is the user profile file.
+        skills/test/SKILL.md: |
+          # Test Skill
+          This is a test skill definition.
