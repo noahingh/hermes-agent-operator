@@ -14,6 +14,8 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
+const workspacePathSeparator = "__"
+
 type HermesAgentUseCase struct {
 	kube Kubernetes
 }
@@ -80,7 +82,7 @@ func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*co
 	}
 	if hw := ha.GetHermesWorkspace(); hw != nil {
 		for path, content := range hw.Files {
-			key := "workspace." + strings.ReplaceAll(path, "/", "__")
+			key := "workspace." + strings.ReplaceAll(path, "/", workspacePathSeparator)
 			data[key] = content
 		}
 	}
@@ -189,16 +191,16 @@ cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
 			Image:           "nousresearch/hermes-agent:latest",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args: []string{`set -eu
+			Args: []string{fmt.Sprintf(`set -eu
 mkdir -p "/opt/data/home"
 for f in /bootstrap/workspace.*; do
   [ -f "$f" ] || continue
-  relpath=$(basename "$f" | sed 's/^workspace\.//' | sed 's/__/\//g')
+  relpath=$(basename "$f" | sed 's/^workspace\.//' | sed 's/%s/\//g')
   target="/opt/data/home/$relpath"
   mkdir -p "$(dirname "$target")"
   cp "$f" "$target"
 done
-`},
+`, workspacePathSeparator)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 			},
