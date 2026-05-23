@@ -42,6 +42,13 @@ type HermesPersistence struct {
 	ExistingClaim *string `json:"existingClaim,omitempty"`
 }
 
+func (p *HermesPersistence) GetExistingClaim() string {
+	if p != nil && p.ExistingClaim != nil {
+		return *p.ExistingClaim
+	}
+	return ""
+}
+
 func (p *HermesPersistence) GetSize() resource.Quantity {
 	if p != nil && p.Size != nil {
 		return *p.Size

@@ -173,12 +173,12 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 
 	// If persistence is enabled, use a PersistentVolumeClaim. Otherwise, use an EmptyDir volume.
 	hp := ha.GetHermesPersistence()
-	if hp != nil && hp.ExistingClaim != nil {
+	if ec := hp.GetExistingClaim(); ec != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "data",
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: *hp.ExistingClaim,
+					ClaimName: ec,
 				},
 			},
 		})
