@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -71,6 +72,12 @@ type Hermes struct {
 	// workspace defines files to seed in the agent's home directory.
 	// +optional
 	Workspace *HermesWorkspace `json:"workspace,omitempty"`
+	// env is a list of environment variables to inject into the hermes-agent container.
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
+	// envFrom injects all keys from a ConfigMap or Secret as environment variables.
+	// +optional
+	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
 }
 
 // HermesAgentSpec defines the desired state of HermesAgent
@@ -148,6 +155,20 @@ func (h *HermesAgent) GetHermesWorkspace() *HermesWorkspace {
 		return nil
 	}
 	return h.Spec.Hermes.Workspace
+}
+
+func (h *HermesAgent) GetHermesEnv() []corev1.EnvVar {
+	if h.Spec.Hermes == nil {
+		return nil
+	}
+	return h.Spec.Hermes.Env
+}
+
+func (h *HermesAgent) GetHermesEnvFrom() []corev1.EnvFromSource {
+	if h.Spec.Hermes == nil {
+		return nil
+	}
+	return h.Spec.Hermes.EnvFrom
 }
 
 // +kubebuilder:object:root=true
