@@ -44,7 +44,7 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 }
 
 func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
-	cmName := configMapName(ha)
+	cmName := ha.GetConfigMapName()
 	cm, err := u.kube.GetConfigMap(ctx, GetConfigMapParam{
 		NamespacedName: types.NamespacedName{Name: cmName, Namespace: ha.Namespace},
 	})
@@ -70,8 +70,8 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 
 func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
 	data := map[string]string{}
-	if ha.Spec.Hermes != nil && ha.Spec.Hermes.Config != nil {
-		yamlBytes, err := sigsyaml.JSONToYAML(ha.Spec.Hermes.Config.Raw)
+	if hc := ha.GetHermesConfig(); hc != nil {
+		yamlBytes, err := sigsyaml.JSONToYAML(hc.Raw)
 		if err != nil {
 			return nil, fmt.Errorf("converting config to YAML: %w", err)
 		}
@@ -80,7 +80,7 @@ func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*co
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      configMapName(ha),
+			Name:      ha.GetConfigMapName(),
 			Namespace: ha.Namespace,
 		},
 		Data: data,
@@ -110,46 +110,56 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 
 func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *appsv1.StatefulSet {
 	replicas := int32(1)
-	dshmSize := resource.MustParse("1Gi")
-	hasConfig := ha.Spec.Hermes != nil && ha.Spec.Hermes.Config != nil
+	sizeLimit := resource.MustParse("1Gi")
 
+	initContainers := []corev1.Container{}
 	volumes := []corev1.Volume{
 		{
 			Name: "dshm",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					Medium:    corev1.StorageMediumMemory,
-					SizeLimit: &dshmSize,
+					SizeLimit: &sizeLimit,
 				},
 			},
 		},
 	}
+	pvc := []corev1.PersistentVolumeClaim{}
 
-	mainVolumeMounts := []corev1.VolumeMount{
-		{Name: "dshm", MountPath: "/dev/shm"},
-	}
-
-	var initContainers []corev1.Container
-
-	if hasConfig {
-		volumes = append(volumes,
-			corev1.Volume{
-				Name:         "data",
-				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-			},
-			corev1.Volume{
-				Name: "bootstrap",
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{Name: configMapName(ha)},
+	// If persistence is enabled, use a PersistentVolumeClaim. Otherwise, use an EmptyDir volume.
+	hp := ha.GetHermesPersistence()
+	if hp != nil && hp.Enabled {
+		pvc = append(pvc, corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{Name: "data"},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: hp.GetSize(),
 					},
 				},
+				StorageClassName: hp.StorageClassName,
 			},
-		)
+		})
+	} else {
+		volumes = append(volumes, corev1.Volume{
+			Name:         "data",
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		})
+	}
 
-		mainVolumeMounts = append(mainVolumeMounts,
-			corev1.VolumeMount{Name: "data", MountPath: "/opt/data"},
-		)
+	// If a config is provided, mount it via an init container that copies the config to the data volume. 
+	// This allows the agent to write to the config file if needed.
+	hc := ha.GetHermesConfig()
+	if hc != nil {
+		volumes = append(volumes, corev1.Volume{
+			Name: "bootstrap",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: ha.GetConfigMapName()},
+				},
+			},
+		})
 
 		initContainers = []corev1.Container{
 			{
@@ -174,7 +184,7 @@ fi
 		}
 	}
 
-	return &appsv1.StatefulSet{
+	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ha.Name,
 			Namespace: ha.Namespace,
@@ -211,16 +221,20 @@ fi
 									corev1.ResourceMemory: resource.MustParse("1Gi"),
 								},
 							},
-							VolumeMounts: mainVolumeMounts,
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "dshm", MountPath: "/dev/shm"},
+								{Name: "data", MountPath: "/opt/data"},
+							},
 						},
 					},
 					Volumes: volumes,
 				},
 			},
+			VolumeClaimTemplates: pvc,
 		},
 	}
+
+	return sts
 }
 
-func configMapName(ha *agentsv1alpha1.HermesAgent) string {
-	return ha.Name + "-config"
-}
+	
