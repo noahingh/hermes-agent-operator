@@ -14,7 +14,7 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
-const workspacePathSeparator = "__"
+const workspacePathSeparator = "--"
 
 type HermesAgentUseCase struct {
 	kube Kubernetes
@@ -165,6 +165,7 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 		})
 	}
 
+	// If config is provided, add an init container to copy config.yaml to the shared volume.
 	if hc := ha.GetHermesConfig(); hc != nil {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-config",
@@ -185,6 +186,8 @@ cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
 		})
 	}
 
+	// If workspace files are provided, add an init container to copy them to the shared volume. 
+	// The file keys in the ConfigMap are in the format "workspace.<path>" where "/" in the path is replaced with "__" to be a valid ConfigMap key.
 	if hw := ha.GetHermesWorkspace(); hw != nil && len(hw.Files) > 0 {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-workspace",
