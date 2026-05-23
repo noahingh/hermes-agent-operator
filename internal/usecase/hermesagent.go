@@ -70,8 +70,8 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 
 func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
 	data := map[string]string{}
-	if ha.Spec.Hermes != nil && ha.Spec.Hermes.Config != nil {
-		yamlBytes, err := sigsyaml.JSONToYAML(ha.Spec.Hermes.Config.Raw)
+	if hc := ha.GetHermesConfig(); hc != nil {
+		yamlBytes, err := sigsyaml.JSONToYAML(hc.Raw)
 		if err != nil {
 			return nil, fmt.Errorf("converting config to YAML: %w", err)
 		}
@@ -148,7 +148,6 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 		})
 	}
 
-
 	// If a config is provided, mount it via an init container that copies the config to the data volume. 
 	// This allows the agent to write to the config file if needed.
 	hc := ha.GetHermesConfig()
@@ -185,7 +184,6 @@ fi
 		}
 	}
 
-	// 
 	sts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ha.Name,
