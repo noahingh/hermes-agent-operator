@@ -45,6 +45,48 @@ spec:
                   config:
                     description: config holds the Hermes agent config.yml configuration.
                     x-kubernetes-preserve-unknown-fields: true
+                  storage:
+                    description: storage configures persistent storage for the agent.
+                    properties:
+                      persistence:
+                        description: persistence configures a PersistentVolumeClaim
+                          for agent data.
+                        properties:
+                          enabled:
+                            description: enabled turns on a PersistentVolumeClaim
+                              for /opt/data.
+                            type: boolean
+                          existingClaim:
+                            description: |-
+                              existingClaim mounts a pre-existing PVC by name instead of provisioning a new one.
+                              When set, enabled/size/storageClassName are ignored.
+                            type: string
+                          size:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: size is the storage request for the PVC (e.g.
+                              "10Gi"). Defaults to 10Gi.
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          storageClassName:
+                            description: storageClassName selects the StorageClass;
+                              omit to use the cluster default.
+                            type: string
+                        type: object
+                    type: object
+                  workspace:
+                    description: workspace defines files to seed in the agent's home
+                      directory.
+                    properties:
+                      files:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          files is a map of file path to content.
+                          Paths may contain "/" for subdirectories (e.g. "skills/test/SKILL.md").
+                        type: object
+                    type: object
                 type: object
             type: object
           status:

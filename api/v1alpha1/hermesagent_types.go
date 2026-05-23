@@ -37,6 +37,17 @@ type HermesPersistence struct {
 	// storageClassName selects the StorageClass; omit to use the cluster default.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
+	// existingClaim mounts a pre-existing PVC by name instead of provisioning a new one.
+	// When set, enabled/size/storageClassName are ignored.
+	// +optional
+	ExistingClaim *string `json:"existingClaim,omitempty"`
+}
+
+func (p *HermesPersistence) GetExistingClaim() string {
+	if p != nil && p.ExistingClaim != nil {
+		return *p.ExistingClaim
+	}
+	return ""
 }
 
 func (p *HermesPersistence) GetSize() resource.Quantity {
