@@ -145,41 +145,43 @@ func (h *HermesAgent) GetConfigMapName() string {
 	return h.Name + "-config"
 }
 
-func (h *HermesAgent) GetHermesConfig() *apiextensionsv1.JSON {
-	if h.Spec.Hermes == nil {
-		return nil
-	}
-	return h.Spec.Hermes.Config
+func (h *HermesAgent) GetHermes() *Hermes {
+	return h.Spec.Hermes
 }
 
-// GetPersistence returns the persistence configuration, or nil if not set.
-func (h *HermesAgent) GetHermesPersistence() *HermesPersistence {
-	if h.Spec.Hermes == nil || h.Spec.Hermes.Storage == nil {
+func (h *Hermes) GetConfig() *apiextensionsv1.JSON {
+	if h == nil {
 		return nil
 	}
-	return h.Spec.Hermes.Storage.Persistence
+	return h.Config
 }
 
-// GetHermesWorkspace returns the workspace configuration, or nil if not set.
-func (h *HermesAgent) GetHermesWorkspace() *HermesWorkspace {
-	if h.Spec.Hermes == nil {
+func (h *Hermes) GetPersistence() *HermesPersistence {
+	if h == nil || h.Storage == nil {
 		return nil
 	}
-	return h.Spec.Hermes.Workspace
+	return h.Storage.Persistence
 }
 
-func (h *HermesAgent) GetHermesEnv() []corev1.EnvVar {
-	if h.Spec.Hermes == nil {
+func (h *Hermes) GetWorkspace() *HermesWorkspace {
+	if h == nil {
 		return nil
 	}
-	return h.Spec.Hermes.Env
+	return h.Workspace
 }
 
-func (h *HermesAgent) GetHermesEnvFrom() []corev1.EnvFromSource {
-	if h.Spec.Hermes == nil {
+func (h *Hermes) GetEnv() []corev1.EnvVar {
+	if h == nil {
 		return nil
 	}
-	return h.Spec.Hermes.EnvFrom
+	return h.Env
+}
+
+func (h *Hermes) GetEnvFrom() []corev1.EnvFromSource {
+	if h == nil {
+		return nil
+	}
+	return h.EnvFrom
 }
 
 // +kubebuilder:object:root=true

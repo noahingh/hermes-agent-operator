@@ -73,14 +73,14 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 
 func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
 	data := map[string]string{}
-	if hc := ha.GetHermesConfig(); hc != nil {
+	if hc := ha.GetHermes().GetConfig(); hc != nil {
 		yamlBytes, err := sigsyaml.JSONToYAML(hc.Raw)
 		if err != nil {
 			return nil, fmt.Errorf("converting config to YAML: %w", err)
 		}
 		data["config.yaml"] = string(yamlBytes)
 	}
-	if hw := ha.GetHermesWorkspace(); hw != nil {
+	if hw := ha.GetHermes().GetWorkspace(); hw != nil {
 		for path, content := range hw.Files {
 			key := "workspace." + strings.ReplaceAll(path, "/", workspacePathSeparator)
 			data[key] = content
@@ -161,8 +161,8 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Env: append([]corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 				{Name: "HOME", Value: "/opt/data/home"},
-			}, ha.GetHermesEnv()...),
-			EnvFrom: ha.GetHermesEnvFrom(),
+			}, ha.GetHermes().GetEnv()...),
+			EnvFrom: ha.GetHermes().GetEnvFrom(),
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("2"),
@@ -201,7 +201,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	pvc := []corev1.PersistentVolumeClaim{}
 
 	// persistence: existingClaim > enabled PVC > emptyDir fallback.
-	hp := ha.GetHermesPersistence()
+	hp := ha.GetHermes().GetPersistence()
 	if ec := hp.GetExistingClaim(); ec != "" {
 		volumes = append(volumes, corev1.Volume{
 			Name: "data",
@@ -232,7 +232,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	}
 
 	// config: init container copies config.yaml from the bootstrap ConfigMap to the data volume.
-	if hc := ha.GetHermesConfig(); hc != nil {
+	if hc := ha.GetHermes().GetConfig(); hc != nil {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-config",
 			Image:           "nousresearch/hermes-agent:latest",
@@ -254,7 +254,7 @@ cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
 
 	// workspace: init container copies workspace files from the bootstrap ConfigMap.
 	// ConfigMap keys use the format "workspace.<path>" with "/" replaced by "--".
-	if hw := ha.GetHermesWorkspace(); hw != nil && len(hw.Files) > 0 {
+	if hw := ha.GetHermes().GetWorkspace(); hw != nil && len(hw.Files) > 0 {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-workspace",
 			Image:           "nousresearch/hermes-agent:latest",
