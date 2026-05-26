@@ -342,7 +342,6 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	return sts
 }
 
-
 func (u *HermesAgentUseCase) buildConfigScript() string {
 	return `set -eu
 mkdir -p "/opt/data/home"
@@ -380,7 +379,6 @@ done
 printf '%%s' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 `, workspacePathSeparator, workspacePathSeparator)
 }
-
 
 func (u *HermesAgentUseCase) buildPluginsScript(plugins []agentsv1alpha1.HermesPlugin) string {
 	desiredNames := make([]string, 0, len(plugins))
