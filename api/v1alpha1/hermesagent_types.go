@@ -84,6 +84,22 @@ type HermesPlugin struct {
 	Enable *bool `json:"enable,omitempty"`
 }
 
+// HermesSkill defines a skill to install via hermes skills install.
+type HermesSkill struct {
+	// identifier is the skill identifier (e.g. openai/skills/skill-creator) or HTTP(S) URL to a SKILL.md file.
+	// +required
+	Identifier string `json:"identifier"`
+	// category is the category folder to install into.
+	// +optional
+	Category string `json:"category,omitempty"`
+	// name overrides the skill name (useful when the SKILL.md has no name frontmatter).
+	// +optional
+	Name string `json:"name,omitempty"`
+	// force installs despite a blocked scan verdict.
+	// +optional
+	Force bool `json:"force,omitempty"`
+}
+
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
 	// config holds the Hermes agent config.yml configuration.
@@ -98,6 +114,9 @@ type Hermes struct {
 	// plugins is a list of plugins to install in the Hermes agent.
 	// +optional
 	Plugins []HermesPlugin `json:"plugins,omitempty"`
+	// skills is a list of skills to install via hermes skills install.
+	// +optional
+	Skills []HermesSkill `json:"skills,omitempty"`
 	// env is a list of environment variables to inject into the hermes-agent container.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
@@ -190,6 +209,13 @@ func (h *Hermes) GetPlugins() []HermesPlugin {
 		return nil
 	}
 	return h.Plugins
+}
+
+func (h *Hermes) GetSkills() []HermesSkill {
+	if h == nil {
+		return nil
+	}
+	return h.Skills
 }
 
 func (h *Hermes) GetEnv() []corev1.EnvVar {
