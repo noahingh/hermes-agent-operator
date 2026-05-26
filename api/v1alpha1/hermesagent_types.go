@@ -72,6 +72,18 @@ type HermesWorkspace struct {
 	Files map[string]string `json:"files,omitempty"`
 }
 
+// HermesPlugin defines a plugin to install in the Hermes agent.
+type HermesPlugin struct {
+	// identifier is the Git URL or owner/repo shorthand
+	// (e.g. "anpicasso/hermes-plugin-chrome-profiles").
+	// +kubebuilder:validation:Required
+	Identifier string `json:"identifier"`
+	// enable controls whether the plugin is auto-enabled after install.
+	// Defaults to true (--enable). Set to false to install disabled (--no-enable).
+	// +optional
+	Enable *bool `json:"enable,omitempty"`
+}
+
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
 	// config holds the Hermes agent config.yml configuration.
@@ -83,6 +95,9 @@ type Hermes struct {
 	// workspace defines files to seed in the agent's home directory.
 	// +optional
 	Workspace *HermesWorkspace `json:"workspace,omitempty"`
+	// plugins is a list of plugins to install in the Hermes agent.
+	// +optional
+	Plugins []HermesPlugin `json:"plugins,omitempty"`
 	// env is a list of environment variables to inject into the hermes-agent container.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
@@ -168,6 +183,13 @@ func (h *Hermes) GetWorkspace() *HermesWorkspace {
 		return nil
 	}
 	return h.Workspace
+}
+
+func (h *Hermes) GetPlugins() []HermesPlugin {
+	if h == nil {
+		return nil
+	}
+	return h.Plugins
 }
 
 func (h *Hermes) GetEnv() []corev1.EnvVar {
