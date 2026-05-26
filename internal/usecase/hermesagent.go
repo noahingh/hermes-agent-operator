@@ -302,13 +302,12 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 
 	// plugins: init container installs desired plugins and removes stale ones.
 	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
-		script := u.buildPluginsScript(plugins)
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-plugins",
 			Image:           "nousresearch/hermes-agent:latest",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{script},
+			Args:            []string{u.buildPluginsScript(plugins)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 			},
