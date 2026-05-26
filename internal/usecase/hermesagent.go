@@ -332,7 +332,20 @@ printf '%%s' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 
 	// plugins: init container installs desired plugins and removes stale ones.
 	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
-		initContainers = append(initContainers, u.buildPluginsInitContainer(plugins))
+		script := u.buildPluginsScript(plugins)
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "init-plugins",
+			Image:           "nousresearch/hermes-agent:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-ec"},
+			Args:            []string{script},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+			},
+		})
 	}
 
 	// skills: init container installs/uninstalls skills via the hermes CLI.
@@ -405,7 +418,7 @@ printf '%%s\n' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 	return sts
 }
 
-func (u *HermesAgentUseCase) buildPluginsInitContainer(plugins []agentsv1alpha1.HermesPlugin) corev1.Container {
+func (u *HermesAgentUseCase) buildPluginsScript(plugins []agentsv1alpha1.HermesPlugin) string {
 	desiredNames := make([]string, 0, len(plugins))
 	installLines := make([]string, 0, len(plugins))
 
@@ -450,19 +463,7 @@ cat > "$MANIFEST" << 'PLUGINS_EOF'
 PLUGINS_EOF
 `, casePattern, installScript, manifestContent)
 
-	return corev1.Container{
-		Name:            "init-plugins",
-		Image:           "nousresearch/hermes-agent:latest",
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Command:         []string{"/bin/sh", "-ec"},
-		Args:            []string{script},
-		Env: []corev1.EnvVar{
-			{Name: "HERMES_HOME", Value: "/opt/data"},
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			{Name: "data", MountPath: "/opt/data"},
-		},
-	}
+	return script
 }
 
 // pluginDirName derives the plugin directory name from a Git URL or owner/repo shorthand.
