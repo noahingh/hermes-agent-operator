@@ -72,6 +72,18 @@ type HermesWorkspace struct {
 	Files map[string]string `json:"files,omitempty"`
 }
 
+// HermesPlugin defines a plugin to install in the Hermes agent.
+type HermesPlugin struct {
+	// identifier is the Git URL or owner/repo shorthand
+	// (e.g. "anpicasso/hermes-plugin-chrome-profiles").
+	// +kubebuilder:validation:Required
+	Identifier string `json:"identifier"`
+	// enable controls whether the plugin is auto-enabled after install.
+	// Defaults to true (--enable). Set to false to install disabled (--no-enable).
+	// +optional
+	Enable *bool `json:"enable,omitempty"`
+}
+
 // HermesSkill defines a skill to install via hermes skills install.
 type HermesSkill struct {
 	// identifier is the skill identifier (e.g. openai/skills/skill-creator) or HTTP(S) URL to a SKILL.md file.
@@ -99,6 +111,9 @@ type Hermes struct {
 	// workspace defines files to seed in the agent's home directory.
 	// +optional
 	Workspace *HermesWorkspace `json:"workspace,omitempty"`
+	// plugins is a list of plugins to install in the Hermes agent.
+	// +optional
+	Plugins []HermesPlugin `json:"plugins,omitempty"`
 	// skills is a list of skills to install via hermes skills install.
 	// +optional
 	Skills []HermesSkill `json:"skills,omitempty"`
@@ -187,6 +202,13 @@ func (h *Hermes) GetWorkspace() *HermesWorkspace {
 		return nil
 	}
 	return h.Workspace
+}
+
+func (h *Hermes) GetPlugins() []HermesPlugin {
+	if h == nil {
+		return nil
+	}
+	return h.Plugins
 }
 
 func (h *Hermes) GetSkills() []HermesSkill {

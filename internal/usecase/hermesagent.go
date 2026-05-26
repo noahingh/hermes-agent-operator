@@ -330,6 +330,11 @@ printf '%%s' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 		})
 	}
 
+	// plugins: init container installs desired plugins and removes stale ones.
+	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
+		initContainers = append(initContainers, u.buildPluginsInitContainer(plugins))
+  }
+  
 	// skills: init container installs/uninstalls skills via the hermes CLI.
 	if skills := ha.GetHermes().GetSkills(); len(skills) > 0 {
 		// Build the new manifest content (skill names, one per line).
@@ -398,4 +403,76 @@ printf '%%s\n' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 	sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, pvc...)
 
 	return sts
+}
+
+func (u *HermesAgentUseCase) buildPluginsInitContainer(plugins []agentsv1alpha1.HermesPlugin) corev1.Container {
+	desiredNames := make([]string, 0, len(plugins))
+	installLines := make([]string, 0, len(plugins))
+
+	for _, p := range plugins {
+		name := pluginDirName(p.Identifier)
+		desiredNames = append(desiredNames, name)
+
+		enableFlag := "--enable"
+		if p.Enable != nil && !*p.Enable {
+			enableFlag = "--no-enable"
+		}
+		installLines = append(installLines,
+			fmt.Sprintf("hermes plugins install --force %s %q", enableFlag, p.Identifier))
+	}
+
+	// case pattern: "name1"|"name2" — safe because plugin names are GitHub repo names
+	casePattern := `"` + strings.Join(desiredNames, `"|"`) + `"`
+	installScript := strings.Join(installLines, "\n")
+	manifestContent := strings.Join(desiredNames, "\n")
+
+	script := fmt.Sprintf(`set -eu
+MANIFEST="/opt/data/.hermes-agent-operator/plugins"
+mkdir -p "/opt/data/.hermes-agent-operator"
+
+# Remove plugins present in manifest but no longer desired
+if [ -f "$MANIFEST" ]; then
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    case "$name" in
+      %s) ;;
+      *) hermes plugins remove "$name" || true ;;
+    esac
+  done < "$MANIFEST"
+fi
+
+# Install desired plugins
+%s
+
+# Update manifest
+cat > "$MANIFEST" << 'PLUGINS_EOF'
+%s
+PLUGINS_EOF
+`, casePattern, installScript, manifestContent)
+
+	return corev1.Container{
+		Name:            "init-plugins",
+		Image:           "nousresearch/hermes-agent:latest",
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Command:         []string{"/bin/sh", "-ec"},
+		Args:            []string{script},
+		Env: []corev1.EnvVar{
+			{Name: "HERMES_HOME", Value: "/opt/data"},
+		},
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: "data", MountPath: "/opt/data"},
+		},
+	}
+}
+
+// pluginDirName derives the plugin directory name from a Git URL or owner/repo shorthand.
+// e.g. "owner/hermes-plugin-foo" or "https://github.com/owner/hermes-plugin-foo.git" → "hermes-plugin-foo".
+func pluginDirName(identifier string) string {
+	s := strings.TrimRight(identifier, "/")
+	s = strings.TrimSuffix(s, ".git")
+	s = strings.TrimRight(s, "/")
+	if i := strings.LastIndex(s, "/"); i >= 0 {
+		return s[i+1:]
+	}
+	return s
 }
