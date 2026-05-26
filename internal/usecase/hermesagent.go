@@ -323,7 +323,6 @@ printf '%%s' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 		})
 	}
 
-
 	// plugins: init container installs desired plugins and removes stale ones.
 	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
 		initContainers = append(initContainers, u.buildPluginsInitContainer(plugins))
