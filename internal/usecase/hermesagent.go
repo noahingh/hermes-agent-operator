@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	domain                = "hermes-agent-operator.xyz"
+	domain                 = "hermes-agent-operator.xyz"
 	workspacePathSeparator = "--"
 )
 
@@ -29,7 +29,7 @@ func configMapDataHash(data map[string]string) string {
 	sort.Strings(keys)
 	h := sha256.New()
 	for _, k := range keys {
-		fmt.Fprintf(h, "%s\x00%s\x00", k, data[k])
+		_, _ = fmt.Fprintf(h, "%s\x00%s\x00", k, data[k])
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))[:16]
 }
