@@ -270,10 +270,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           "nousresearch/hermes-agent:latest",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args: []string{`set -eu
-mkdir -p "/opt/data/home"
-cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
-`},
+			Args:            []string{u.buildConfigScript()},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 			},
@@ -292,7 +289,68 @@ cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
 			Image:           "nousresearch/hermes-agent:latest",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args: []string{fmt.Sprintf(`set -eu
+			Args:            []string{u.buildWorkspaceScript()},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+				{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
+			},
+		})
+	}
+
+	// plugins: init container installs desired plugins and removes stale ones.
+	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "init-plugins",
+			Image:           "nousresearch/hermes-agent:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-ec"},
+			Args:            []string{u.buildPluginsScript(plugins)},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+			},
+		})
+	}
+
+	// skills: init container installs/uninstalls skills via the hermes CLI.
+	if skills := ha.GetHermes().GetSkills(); len(skills) > 0 {
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "init-skills",
+			Image:           "nousresearch/hermes-agent:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-ec"},
+			Args:            []string{u.buildSkillsScript(skills)},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+			},
+		})
+	}
+
+	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, initContainers...)
+	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, containers...)
+	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, volumes...)
+	sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, pvc...)
+
+	return sts
+}
+
+func (u *HermesAgentUseCase) buildConfigScript() string {
+	return `set -eu
+mkdir -p "/opt/data/home"
+cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
+`
+}
+
+func (u *HermesAgentUseCase) buildWorkspaceScript() string {
+	return fmt.Sprintf(`set -eu
 MANIFEST_FILE="/opt/data/.hermes-agent-operator/workspace-files"
 UPDATED_MANIFEST=""
 mkdir -p "/opt/data/.hermes-agent-operator"
@@ -319,93 +377,10 @@ for f in /bootstrap/workspace.*; do
 done
 
 printf '%%s' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
-`, workspacePathSeparator, workspacePathSeparator)},
-			Env: []corev1.EnvVar{
-				{Name: "HERMES_HOME", Value: "/opt/data"},
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{Name: "data", MountPath: "/opt/data"},
-				{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
-			},
-		})
-	}
-
-	// plugins: init container installs desired plugins and removes stale ones.
-	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
-		initContainers = append(initContainers, u.buildPluginsInitContainer(plugins))
-	}
-
-	// skills: init container installs/uninstalls skills via the hermes CLI.
-	if skills := ha.GetHermes().GetSkills(); len(skills) > 0 {
-		// Build the new manifest content (skill names, one per line).
-		names := make([]string, len(skills))
-		for i, s := range skills {
-			names[i] = skillName(s)
-		}
-		newManifest := strings.Join(names, "\n")
-
-		// Build install commands.
-		var installCmds strings.Builder
-		for _, s := range skills {
-			installCmds.WriteString("hermes skills install --yes")
-			if s.Category != "" {
-				installCmds.WriteString(" --category ")
-				installCmds.WriteString(s.Category)
-			}
-			if s.Name != "" {
-				installCmds.WriteString(" --name ")
-				installCmds.WriteString(s.Name)
-			}
-			if s.Force {
-				installCmds.WriteString(" --force")
-			}
-			installCmds.WriteString(" ")
-			installCmds.WriteString(s.Identifier)
-			installCmds.WriteString("\n")
-		}
-
-		script := fmt.Sprintf(`set -eu
-UPDATED_MANIFEST=%q
-MANIFEST_FILE="/opt/data/.hermes-agent-operator/skills"
-mkdir -p "/opt/data/.hermes-agent-operator"
-
-if [ -f "$MANIFEST_FILE" ]; then
-  while IFS= read -r managed; do
-    [ -z "$managed" ] && continue
-    if ! printf '%%s\n' "$UPDATED_MANIFEST" | grep -qxF "$managed"; then
-      hermes skills uninstall "$managed"
-    fi
-  done < "$MANIFEST_FILE"
-fi
-
-%s
-printf '%%s\n' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
-`, newManifest, installCmds.String())
-
-		initContainers = append(initContainers, corev1.Container{
-			Name:            "init-skills",
-			Image:           "nousresearch/hermes-agent:latest",
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{script},
-			Env: []corev1.EnvVar{
-				{Name: "HERMES_HOME", Value: "/opt/data"},
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{Name: "data", MountPath: "/opt/data"},
-			},
-		})
-	}
-
-	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, initContainers...)
-	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, containers...)
-	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, volumes...)
-	sts.Spec.VolumeClaimTemplates = append(sts.Spec.VolumeClaimTemplates, pvc...)
-
-	return sts
+`, workspacePathSeparator, workspacePathSeparator)
 }
 
-func (u *HermesAgentUseCase) buildPluginsInitContainer(plugins []agentsv1alpha1.HermesPlugin) corev1.Container {
+func (u *HermesAgentUseCase) buildPluginsScript(plugins []agentsv1alpha1.HermesPlugin) string {
 	desiredNames := make([]string, 0, len(plugins))
 	installLines := make([]string, 0, len(plugins))
 
@@ -450,19 +425,7 @@ cat > "$MANIFEST" << 'PLUGINS_EOF'
 PLUGINS_EOF
 `, casePattern, installScript, manifestContent)
 
-	return corev1.Container{
-		Name:            "init-plugins",
-		Image:           "nousresearch/hermes-agent:latest",
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Command:         []string{"/bin/sh", "-ec"},
-		Args:            []string{script},
-		Env: []corev1.EnvVar{
-			{Name: "HERMES_HOME", Value: "/opt/data"},
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			{Name: "data", MountPath: "/opt/data"},
-		},
-	}
+	return script
 }
 
 // pluginDirName derives the plugin directory name from a Git URL or owner/repo shorthand.
@@ -475,4 +438,49 @@ func pluginDirName(identifier string) string {
 		return s[i+1:]
 	}
 	return s
+}
+
+func (u *HermesAgentUseCase) buildSkillsScript(skills []agentsv1alpha1.HermesSkill) string {
+	names := make([]string, len(skills))
+	for i, s := range skills {
+		names[i] = skillName(s)
+	}
+	newManifest := strings.Join(names, "\n")
+
+	var installCmds strings.Builder
+	for _, s := range skills {
+		installCmds.WriteString("hermes skills install --yes")
+		if s.Category != "" {
+			installCmds.WriteString(" --category ")
+			installCmds.WriteString(s.Category)
+		}
+		if s.Name != "" {
+			installCmds.WriteString(" --name ")
+			installCmds.WriteString(s.Name)
+		}
+		if s.Force {
+			installCmds.WriteString(" --force")
+		}
+		installCmds.WriteString(" ")
+		installCmds.WriteString(s.Identifier)
+		installCmds.WriteString("\n")
+	}
+
+	return fmt.Sprintf(`set -eu
+UPDATED_MANIFEST=%q
+MANIFEST_FILE="/opt/data/.hermes-agent-operator/skills"
+mkdir -p "/opt/data/.hermes-agent-operator"
+
+if [ -f "$MANIFEST_FILE" ]; then
+  while IFS= read -r managed; do
+    [ -z "$managed" ] && continue
+    if ! printf '%%s\n' "$UPDATED_MANIFEST" | grep -qxF "$managed"; then
+      hermes skills uninstall "$managed"
+    fi
+  done < "$MANIFEST_FILE"
+fi
+
+%s
+printf '%%s\n' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
+`, newManifest, installCmds.String())
 }
