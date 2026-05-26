@@ -16,7 +16,10 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
-const workspacePathSeparator = "--"
+const (
+	domain                = "hermes-agent-operator.xyz"
+	workspacePathSeparator = "--"
+)
 
 func configMapDataHash(data map[string]string) string {
 	keys := make([]string, 0, len(data))
@@ -153,7 +156,7 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": ha.Name},
 					Annotations: map[string]string{
-						"hermes.agent/config-hash": configHash,
+						domain + "/config-hash": configHash,
 					},
 				},
 			},
