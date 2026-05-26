@@ -286,14 +286,32 @@ cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
 			Args: []string{fmt.Sprintf(`set -eu
+MANIFEST="/opt/data/.hermes-workspace-manifest"
+NEW_MANIFEST=""
+
+# delete files that were previously managed but are no longer in workspace.files
+if [ -f "$MANIFEST" ]; then
+  while IFS= read -r managed; do
+    [ -z "$managed" ] && continue
+    key="workspace.$(echo "$managed" | sed 's|/|%s|g')"
+    if [ ! -f "/bootstrap/$key" ]; then
+      rm -f "/opt/data/$managed"
+    fi
+  done < "$MANIFEST"
+fi
+
 for f in /bootstrap/workspace.*; do
   [ -f "$f" ] || continue
   relpath=$(basename "$f" | sed 's/^workspace\.//' | sed 's/%s/\//g')
   target="/opt/data/$relpath"
   mkdir -p "$(dirname "$target")"
   cp "$f" "$target"
+  NEW_MANIFEST="$NEW_MANIFEST$relpath
+"
 done
-`, workspacePathSeparator)},
+
+printf '%%s' "$NEW_MANIFEST" > "$MANIFEST"
+`, workspacePathSeparator, workspacePathSeparator)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 			},
