@@ -30,3 +30,8 @@ spec:
     envFrom:
       - secretRef:
           name: ollama-api-secret
+    crons:
+      - name: Check server status
+        schedule: every 2h
+        prompt: Check server status
+        deliver: local

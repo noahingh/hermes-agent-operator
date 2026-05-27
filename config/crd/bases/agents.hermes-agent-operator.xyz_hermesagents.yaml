@@ -45,6 +45,58 @@ spec:
                   config:
                     description: config holds the Hermes agent config.yml configuration.
                     x-kubernetes-preserve-unknown-fields: true
+                  crons:
+                    description: crons is a list of scheduled jobs to manage via hermes
+                      cron.
+                    items:
+                      description: HermesCron defines a scheduled job managed via
+                        hermes cron.
+                      properties:
+                        deliver:
+                          description: 'deliver is the delivery target: origin, local,
+                            telegram, discord, signal, or platform:chat_id.'
+                          type: string
+                        name:
+                          description: name is the human-friendly job name and the
+                            reconciliation key.
+                          type: string
+                        noAgent:
+                          description: noAgent skips the LLM entirely — runs --script
+                            on schedule and delivers stdout directly.
+                          type: boolean
+                        profile:
+                          description: profile is the hermes profile name to run the
+                            job under.
+                          type: string
+                        prompt:
+                          description: prompt is an optional self-contained prompt
+                            or task instruction.
+                          type: string
+                        repeat:
+                          description: repeat is the optional repeat count.
+                          type: integer
+                        schedule:
+                          description: schedule is the cron schedule (e.g. "30m",
+                            "every 2h", "0 9 * * *").
+                          type: string
+                        script:
+                          description: script is a path to a script under ~/.hermes/scripts/.
+                          type: string
+                        skills:
+                          description: skills attaches skills to the job (--skill,
+                            repeatable).
+                          items:
+                            type: string
+                          type: array
+                        workdir:
+                          description: workdir is the absolute path for the job to
+                            run from.
+                          type: string
+                      required:
+                      - name
+                      - schedule
+                      type: object
+                    type: array
                   env:
                     description: env is a list of environment variables to inject
                       into the hermes-agent container.
@@ -250,6 +302,27 @@ spec:
                               type: boolean
                           type: object
                           x-kubernetes-map-type: atomic
+                      type: object
+                    type: array
+                  plugins:
+                    description: plugins is a list of plugins to install in the Hermes
+                      agent.
+                    items:
+                      description: HermesPlugin defines a plugin to install in the
+                        Hermes agent.
+                      properties:
+                        enable:
+                          description: |-
+                            enable controls whether the plugin is auto-enabled after install.
+                            Defaults to true (--enable). Set to false to install disabled (--no-enable).
+                          type: boolean
+                        identifier:
+                          description: |-
+                            identifier is the Git URL or owner/repo shorthand
+                            (e.g. "anpicasso/hermes-plugin-chrome-profiles").
+                          type: string
+                      required:
+                      - identifier
                       type: object
                     type: array
                   skills:

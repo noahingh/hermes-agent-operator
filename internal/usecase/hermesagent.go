@@ -326,6 +326,23 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 		})
 	}
 
+	// crons: init container reconciles scheduled jobs via the hermes CLI.
+	if crons := ha.GetHermes().GetCrons(); len(crons) > 0 {
+		initContainers = append(initContainers, corev1.Container{
+			Name:            "init-crons",
+			Image:           "nousresearch/hermes-agent:latest",
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Command:         []string{"/bin/sh", "-ec"},
+			Args:            []string{u.buildCronsScript(crons)},
+			Env: []corev1.EnvVar{
+				{Name: "HERMES_HOME", Value: "/opt/data"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "data", MountPath: "/opt/data"},
+			},
+		})
+	}
+
 	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, initContainers...)
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, containers...)
 	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, volumes...)
@@ -483,4 +500,78 @@ fi
 %s
 printf '%%s\n' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
 `, newManifest, installCmds.String())
+}
+
+func (u *HermesAgentUseCase) buildCronsScript(crons []agentsv1alpha1.HermesCron) string {
+	names := make([]string, len(crons))
+	for i, c := range crons {
+		names[i] = c.Name
+	}
+	newManifest := strings.Join(names, "\n")
+
+	var createCmds strings.Builder
+	for _, c := range crons {
+		createCmds.WriteString("hermes cron create")
+		fmt.Fprintf(&createCmds, " --name %q", c.Name)
+		if c.Deliver != "" {
+			fmt.Fprintf(&createCmds, " --deliver %q", c.Deliver)
+		}
+		if c.Repeat != nil {
+			fmt.Fprintf(&createCmds, " --repeat %d", *c.Repeat)
+		}
+		for _, s := range c.Skills {
+			fmt.Fprintf(&createCmds, " --skill %q", s)
+		}
+		if c.Script != "" {
+			fmt.Fprintf(&createCmds, " --script %q", c.Script)
+		}
+		if c.NoAgent {
+			createCmds.WriteString(" --no-agent")
+		}
+		if c.Workdir != "" {
+			fmt.Fprintf(&createCmds, " --workdir %q", c.Workdir)
+		}
+		if c.Profile != "" {
+			fmt.Fprintf(&createCmds, " --profile %q", c.Profile)
+		}
+		fmt.Fprintf(&createCmds, " %q", c.Schedule)
+		if c.Prompt != "" {
+			fmt.Fprintf(&createCmds, " %q", c.Prompt)
+		}
+		createCmds.WriteString("\n")
+	}
+
+	return fmt.Sprintf(`set -eu
+UPDATED_MANIFEST=%q
+MANIFEST_FILE="/opt/data/.hermes-agent-operator/crons"
+mkdir -p "/opt/data/.hermes-agent-operator"
+
+get_job_id() {
+  python3 - "$1" <<'PY'
+import json, os, sys
+p = "/opt/data/cron/jobs.json"
+if not os.path.exists(p):
+    sys.exit(0)
+with open(p) as f:
+    data = json.load(f)
+for j in data.get("jobs", []):
+    if j.get("name") == sys.argv[1]:
+        print(j.get("id", ""))
+        break
+PY
+}
+
+# Remove all previously managed jobs by looking up their IDs in jobs.json.
+if [ -f "$MANIFEST_FILE" ]; then
+  while IFS= read -r managed; do
+    [ -z "$managed" ] && continue
+    id=$(get_job_id "$managed")
+    [ -z "$id" ] && continue
+    hermes cron remove "$id" || true
+  done < "$MANIFEST_FILE"
+fi
+
+%s
+printf '%%s\n' "$UPDATED_MANIFEST" > "$MANIFEST_FILE"
+`, newManifest, createCmds.String())
 }

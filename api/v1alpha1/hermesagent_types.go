@@ -100,6 +100,40 @@ type HermesSkill struct {
 	Force bool `json:"force,omitempty"`
 }
 
+// HermesCron defines a scheduled job managed via hermes cron.
+type HermesCron struct {
+	// name is the human-friendly job name and the reconciliation key.
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+	// schedule is the cron schedule (e.g. "30m", "every 2h", "0 9 * * *").
+	// +kubebuilder:validation:Required
+	Schedule string `json:"schedule"`
+	// prompt is an optional self-contained prompt or task instruction.
+	// +optional
+	Prompt string `json:"prompt,omitempty"`
+	// deliver is the delivery target: origin, local, telegram, discord, signal, or platform:chat_id.
+	// +optional
+	Deliver string `json:"deliver,omitempty"`
+	// repeat is the optional repeat count.
+	// +optional
+	Repeat *int `json:"repeat,omitempty"`
+	// skills attaches skills to the job (--skill, repeatable).
+	// +optional
+	Skills []string `json:"skills,omitempty"`
+	// script is a path to a script under ~/.hermes/scripts/.
+	// +optional
+	Script string `json:"script,omitempty"`
+	// noAgent skips the LLM entirely — runs --script on schedule and delivers stdout directly.
+	// +optional
+	NoAgent bool `json:"noAgent,omitempty"`
+	// workdir is the absolute path for the job to run from.
+	// +optional
+	Workdir string `json:"workdir,omitempty"`
+	// profile is the hermes profile name to run the job under.
+	// +optional
+	Profile string `json:"profile,omitempty"`
+}
+
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
 	// config holds the Hermes agent config.yml configuration.
@@ -117,6 +151,9 @@ type Hermes struct {
 	// skills is a list of skills to install via hermes skills install.
 	// +optional
 	Skills []HermesSkill `json:"skills,omitempty"`
+	// crons is a list of scheduled jobs to manage via hermes cron.
+	// +optional
+	Crons []HermesCron `json:"crons,omitempty"`
 	// env is a list of environment variables to inject into the hermes-agent container.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
@@ -216,6 +253,13 @@ func (h *Hermes) GetSkills() []HermesSkill {
 		return nil
 	}
 	return h.Skills
+}
+
+func (h *Hermes) GetCrons() []HermesCron {
+	if h == nil {
+		return nil
+	}
+	return h.Crons
 }
 
 func (h *Hermes) GetEnv() []corev1.EnvVar {
