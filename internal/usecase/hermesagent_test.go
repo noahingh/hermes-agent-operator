@@ -10,6 +10,39 @@ import (
 func ptrBool(b bool) *bool { return &b }
 func ptrInt(i int) *int    { return &i }
 
+func TestBuildStatefulSetReplicas(t *testing.T) {
+	u := &HermesAgentUseCase{}
+
+	makeHA := func(suspend *bool) *agentsv1alpha1.HermesAgent {
+		ha := &agentsv1alpha1.HermesAgent{}
+		ha.Name = "test"
+		ha.Namespace = "default"
+		ha.Spec.Suspend = suspend
+		return ha
+	}
+
+	t.Run("suspend nil → replicas 1", func(t *testing.T) {
+		sts := u.buildStatefulSet(makeHA(nil))
+		if got := *sts.Spec.Replicas; got != 1 {
+			t.Errorf("expected replicas 1, got %d", got)
+		}
+	})
+
+	t.Run("suspend false → replicas 1", func(t *testing.T) {
+		sts := u.buildStatefulSet(makeHA(ptrBool(false)))
+		if got := *sts.Spec.Replicas; got != 1 {
+			t.Errorf("expected replicas 1, got %d", got)
+		}
+	})
+
+	t.Run("suspend true → replicas 0", func(t *testing.T) {
+		sts := u.buildStatefulSet(makeHA(ptrBool(true)))
+		if got := *sts.Spec.Replicas; got != 0 {
+			t.Errorf("expected replicas 0, got %d", got)
+		}
+	})
+}
+
 func TestBuildPluginsScript(t *testing.T) {
 	u := &HermesAgentUseCase{}
 
