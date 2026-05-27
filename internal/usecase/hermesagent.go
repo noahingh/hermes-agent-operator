@@ -186,17 +186,8 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 				{Name: "HOME", Value: "/opt/data/home"},
 			}, ha.GetHermes().GetEnv()...),
-			EnvFrom: ha.GetHermes().GetEnvFrom(),
-			Resources: corev1.ResourceRequirements{
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("1Gi"),
-				},
-			},
+			EnvFrom:   ha.GetHermes().GetEnvFrom(),
+			Resources: ha.GetHermes().GetResources(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "dshm", MountPath: "/dev/shm"},
 				{Name: "data", MountPath: "/opt/data"},

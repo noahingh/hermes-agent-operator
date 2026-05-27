@@ -175,6 +175,9 @@ type Hermes struct {
 	// envFrom injects all keys from a ConfigMap or Secret as environment variables.
 	// +optional
 	EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
+	// resources overrides the resource requests and limits for the hermes-agent container.
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // HermesAgentSpec defines the desired state of HermesAgent
@@ -289,6 +292,22 @@ func (h *Hermes) GetEnvFrom() []corev1.EnvFromSource {
 		return nil
 	}
 	return h.EnvFrom
+}
+
+func (h *Hermes) GetResources() corev1.ResourceRequirements {
+	if h != nil && h.Resources != nil {
+		return *h.Resources
+	}
+	return corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("2"),
+			corev1.ResourceMemory: resource.MustParse("4Gi"),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("1Gi"),
+		},
+	}
 }
 
 func (h *Hermes) GetImage() string {
