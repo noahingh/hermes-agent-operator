@@ -134,8 +134,23 @@ type HermesCron struct {
 	Profile string `json:"profile,omitempty"`
 }
 
+// HermesImage specifies the container image repository and tag.
+type HermesImage struct {
+	// repository is the image repository (e.g. "nousresearch/hermes-agent").
+	// Defaults to "nousresearch/hermes-agent".
+	// +optional
+	Repository string `json:"repository,omitempty"`
+	// tag is the image tag. Defaults to "latest".
+	// +optional
+	Tag string `json:"tag,omitempty"`
+}
+
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
+	// image overrides the container image used for the hermes-agent container
+	// and all init containers.
+	// +optional
+	Image *HermesImage `json:"image,omitempty"`
 	// config holds the Hermes agent config.yml configuration.
 	// +optional
 	Config *apiextensionsv1.JSON `json:"config,omitempty"`
@@ -274,6 +289,20 @@ func (h *Hermes) GetEnvFrom() []corev1.EnvFromSource {
 		return nil
 	}
 	return h.EnvFrom
+}
+
+func (h *Hermes) GetImage() string {
+	repo := "nousresearch/hermes-agent"
+	tag := "latest"
+	if h != nil && h.Image != nil {
+		if h.Image.Repository != "" {
+			repo = h.Image.Repository
+		}
+		if h.Image.Tag != "" {
+			tag = h.Image.Tag
+		}
+	}
+	return repo + ":" + tag
 }
 
 // +kubebuilder:object:root=true

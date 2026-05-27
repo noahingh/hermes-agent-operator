@@ -304,6 +304,20 @@ spec:
                           x-kubernetes-map-type: atomic
                       type: object
                     type: array
+                  image:
+                    description: |-
+                      image overrides the container image used for the hermes-agent container
+                      and all init containers.
+                    properties:
+                      repository:
+                        description: |-
+                          repository is the image repository (e.g. "nousresearch/hermes-agent").
+                          Defaults to "nousresearch/hermes-agent".
+                        type: string
+                      tag:
+                        description: tag is the image tag. Defaults to "latest".
+                        type: string
+                    type: object
                   plugins:
                     description: plugins is a list of plugins to install in the Hermes
                       agent.

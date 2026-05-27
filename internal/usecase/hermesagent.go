@@ -178,7 +178,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	containers := []corev1.Container{
 		{
 			Name:            "hermes-agent",
-			Image:           "nousresearch/hermes-agent:latest",
+			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Args:            []string{"gateway", "run"},
 			WorkingDir:      "/opt/hermes",
@@ -259,7 +259,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	if hc := ha.GetHermes().GetConfig(); hc != nil {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-config",
-			Image:           "nousresearch/hermes-agent:latest",
+			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
 			Args:            []string{u.buildConfigScript()},
@@ -278,7 +278,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	if hw := ha.GetHermes().GetWorkspace(); hw != nil && len(hw.Files) > 0 {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-workspace",
-			Image:           "nousresearch/hermes-agent:latest",
+			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
 			Args:            []string{u.buildWorkspaceScript()},
@@ -296,7 +296,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	if plugins := ha.GetHermes().GetPlugins(); len(plugins) > 0 {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-plugins",
-			Image:           "nousresearch/hermes-agent:latest",
+			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
 			Args:            []string{u.buildPluginsScript(plugins)},
@@ -313,7 +313,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	if skills := ha.GetHermes().GetSkills(); len(skills) > 0 {
 		initContainers = append(initContainers, corev1.Container{
 			Name:            "init-skills",
-			Image:           "nousresearch/hermes-agent:latest",
+			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
 			Args:            []string{u.buildSkillsScript(skills)},
