@@ -534,6 +534,12 @@ type HermesAgentSpec struct {
 	// networking configures the Service and Ingress.
 	// +optional
 	Networking *Networking `json:"networking,omitempty"`
+
+	// InitContainers is a list of additional init containers to run before the main container.
+	// They run after the operator-managed init-config and init-skills containers.
+	// +kubebuilder:validation:MaxItems=10
+	// +optional
+	InitContainers []corev1.Container `json:"initContainers,omitempty"`
 }
 
 // HermesAgentStatus defines the observed state of HermesAgent.
@@ -608,6 +614,10 @@ func (h *HermesAgent) GetSecurity() *HermesSecurity {
 
 func (h *HermesAgent) GetNetworking() *Networking {
 	return h.Spec.Networking
+}
+
+func (h *HermesAgent) GetInitContainers() []corev1.Container {
+	return h.Spec.InitContainers
 }
 
 // +kubebuilder:object:root=true

@@ -90,6 +90,9 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 
 	sts = u.buildHermesContainer(ha, sts)
 
+	// additional user-provided init containers run after the operator-managed ones.
+	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ha.GetInitContainers()...)
+
 	return sts
 }
 
