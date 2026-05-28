@@ -26,66 +26,59 @@ const (
 )
 
 type HermesAgentUseCase struct {
-	kube Kubernetes
-	tel  Telemetry
+	kube   Kubernetes
+	metric Metric
 }
 
 type ReconcileParam struct {
 	NamespacedName types.NamespacedName
 }
 
-func NewHermesAgentUseCase(kube Kubernetes, tel Telemetry) *HermesAgentUseCase {
+func NewHermesAgentUseCase(kube Kubernetes, metric Metric) *HermesAgentUseCase {
 	return &HermesAgentUseCase{
-		kube: kube,
-		tel:  tel,
+		kube:   kube,
+		metric: metric,
 	}
 }
 
 func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam) error {
 	start := time.Now()
 	defer func() {
-		u.tel.ObserveHistogram(MetricReconcileDurationSeconds, time.Since(start).Seconds(), nil)
+		u.metric.ObserveReconcileDuration(ctx, ObserveReconcileDurationParam{Seconds: time.Since(start).Seconds()})
 		u.updateManagedGauge(ctx)
 	}()
 
-	u.tel.Info(ctx, "Reconciling HermesAgent", "namespacedName", param.NamespacedName)
-
 	ha, err := u.kube.GetHermesAgent(ctx, GetHermesAgentParam(param))
 	if err != nil {
-		u.tel.Error(ctx, err, "Failed to get HermesAgent", "namespacedName", param.NamespacedName)
-		u.tel.IncCounter(MetricReconcileTotal, map[string]string{"result": ResultError})
+		u.metric.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
 	if ha == nil {
-		u.tel.Info(ctx, "HermesAgent not found", "namespacedName", param.NamespacedName)
-		u.tel.IncCounter(MetricNotFoundTotal, nil)
-		u.tel.IncCounter(MetricReconcileTotal, map[string]string{"result": ResultNotFound})
+		u.metric.IncNotFound(ctx, IncNotFoundParam{})
+		u.metric.IncReconcile(ctx, IncReconcileParam{Result: ResultNotFound})
 		return nil
 	}
 
 	if err := u.reconcileConfigMap(ctx, ha); err != nil {
-		u.tel.Error(ctx, err, "Failed to reconcile ConfigMap", "namespacedName", param.NamespacedName)
-		u.tel.IncCounter(MetricReconcileTotal, map[string]string{"result": ResultError})
+		u.metric.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
 
 	if err := u.reconcileStatefulSet(ctx, ha); err != nil {
-		u.tel.Error(ctx, err, "Failed to reconcile StatefulSet", "namespacedName", param.NamespacedName)
-		u.tel.IncCounter(MetricReconcileTotal, map[string]string{"result": ResultError})
+		u.metric.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
 
-	u.tel.IncCounter(MetricReconcileTotal, map[string]string{"result": ResultSuccess})
+	u.metric.IncReconcile(ctx, IncReconcileParam{Result: ResultSuccess})
 	return nil
 }
 
 func (u *HermesAgentUseCase) updateManagedGauge(ctx context.Context) {
 	list, err := u.kube.ListHermesAgents(ctx)
 	if err != nil {
-		u.tel.Error(ctx, err, "Failed to list HermesAgents for managed gauge")
 		return
 	}
-	u.tel.SetGauge(MetricManagedTotal, float64(len(list)), nil)
+	u.metric.SetManaged(ctx, SetManagedParam{Count: len(list)})
 }
 
 func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
@@ -105,10 +98,7 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 	if cm != nil {
 		desired.ResourceVersion = cm.ResourceVersion
 		err := u.kube.UpdateConfigMapOwnedByHermesAgent(ctx, UpdateConfigMapParam{HermesAgent: ha, ConfigMap: desired})
-		u.tel.IncCounter(MetricConfigMapOperationsTotal, map[string]string{
-			"operation": OpUpdate,
-			"result":    resultOf(err),
-		})
+		u.metric.IncConfigMapOperation(ctx, IncConfigMapOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
 		return err
 	}
 
@@ -116,14 +106,11 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 		HermesAgent: ha,
 		ConfigMap:   desired,
 	})
-	u.tel.IncCounter(MetricConfigMapOperationsTotal, map[string]string{
-		"operation": OpCreate,
-		"result":    resultOf(err),
-	})
+	u.metric.IncConfigMapOperation(ctx, IncConfigMapOperationParam{Operation: OperationCreate, Result: resultOf(err)})
 	return err
 }
 
-func resultOf(err error) string {
+func resultOf(err error) Result {
 	if err != nil {
 		return ResultError
 	}
@@ -167,10 +154,7 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 	if sts != nil {
 		desired.ResourceVersion = sts.ResourceVersion
 		err := u.kube.UpdateStatefulSetOwnedByHermesAgent(ctx, UpdateStatefulSetParam{HermesAgent: ha, StatefulSet: desired})
-		u.tel.IncCounter(MetricStatefulSetOpsTotal, map[string]string{
-			"operation": OpUpdate,
-			"result":    resultOf(err),
-		})
+		u.metric.IncStatefulSetOperation(ctx, IncStatefulSetOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
 		return err
 	}
 
@@ -178,10 +162,7 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 		HermesAgent: ha,
 		StatefulSet: desired,
 	})
-	u.tel.IncCounter(MetricStatefulSetOpsTotal, map[string]string{
-		"operation": OpCreate,
-		"result":    resultOf(err),
-	})
+	u.metric.IncStatefulSetOperation(ctx, IncStatefulSetOperationParam{Operation: OperationCreate, Result: resultOf(err)})
 	return err
 }
 

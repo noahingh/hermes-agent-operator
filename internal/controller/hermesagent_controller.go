@@ -29,6 +29,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// Metric is the Metric implementation used by Reconcile. It is assigned
+// once in main.go before the controller starts; tests may also override it.
+var metric usecase.Metric = infras.NewPrometheusMetric()
+
 // HermesAgentReconciler reconciles a HermesAgent object
 type HermesAgentReconciler struct {
 	client.Client
@@ -43,7 +47,8 @@ type HermesAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
 
 func (r *HermesAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	uc := usecase.NewHermesAgentUseCase(infras.NewKubernetesClient(r.Client, r.Scheme))
+	kube := infras.NewKubernetesClient(r.Client, r.Scheme)
+	uc := usecase.NewHermesAgentUseCase(kube, metric)
 	if err := uc.Reconcile(ctx, usecase.ReconcileParam{
 		NamespacedName: req.NamespacedName,
 	}); err != nil {

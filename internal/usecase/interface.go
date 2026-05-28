@@ -9,32 +9,60 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	MetricReconcileTotal           = "hermesagent_reconcile_total"
-	MetricReconcileDurationSeconds = "hermesagent_reconcile_duration_seconds"
-	MetricConfigMapOperationsTotal = "hermesagent_configmap_operations_total"
-	MetricStatefulSetOpsTotal      = "hermesagent_statefulset_operations_total"
-	MetricNotFoundTotal            = "hermesagent_not_found_total"
-	MetricManagedTotal             = "hermesagent_managed_total"
+// Result is the outcome of a reconcile or sub-operation, used as a metric label.
+type Result string
 
-	ResultSuccess  = "success"
-	ResultError    = "error"
-	ResultNotFound = "not_found"
-	OpCreate       = "create"
-	OpUpdate       = "update"
+const (
+	ResultSuccess  Result = "success"
+	ResultError    Result = "error"
+	ResultNotFound Result = "not_found"
 )
 
-// Telemetry collects logs and metrics emitted by the usecase.
-// Metric methods are generic and keyed by name; the implementation pre-registers
-// each name with its collector type and label set. Adding a new metric only
-// requires registering it in the implementation — no interface change.
-type Telemetry interface {
-	Info(ctx context.Context, msg string, keysAndValues ...any)
-	Error(ctx context.Context, err error, msg string, keysAndValues ...any)
+func (r Result) String() string { return string(r) }
 
-	IncCounter(name string, labels map[string]string)
-	ObserveHistogram(name string, value float64, labels map[string]string)
-	SetGauge(name string, value float64, labels map[string]string)
+// Operation is the kind of write performed on a child resource, used as a metric label.
+type Operation string
+
+const (
+	OperationCreate Operation = "create"
+	OperationUpdate Operation = "update"
+)
+
+func (o Operation) String() string { return string(o) }
+
+// Metric collects metrics emitted by the usecase. Each metric has its own
+// specific method; the implementation owns the underlying collector names.
+type Metric interface {
+	IncReconcile(ctx context.Context, param IncReconcileParam)
+	ObserveReconcileDuration(ctx context.Context, param ObserveReconcileDurationParam)
+	IncConfigMapOperation(ctx context.Context, param IncConfigMapOperationParam)
+	IncStatefulSetOperation(ctx context.Context, param IncStatefulSetOperationParam)
+	IncNotFound(ctx context.Context, param IncNotFoundParam)
+	SetManaged(ctx context.Context, param SetManagedParam)
+}
+
+type IncReconcileParam struct {
+	Result Result
+}
+
+type ObserveReconcileDurationParam struct {
+	Seconds float64
+}
+
+type IncConfigMapOperationParam struct {
+	Operation Operation
+	Result    Result
+}
+
+type IncStatefulSetOperationParam struct {
+	Operation Operation
+	Result    Result
+}
+
+type IncNotFoundParam struct{}
+
+type SetManagedParam struct {
+	Count int
 }
 
 type Kubernetes interface {
