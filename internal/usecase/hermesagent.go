@@ -8,6 +8,7 @@ import (
 	agentsv1alpha1 "noahingh/hermes-agent-operator/api/v1alpha1"
 	"sort"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,40 +27,71 @@ const (
 
 type HermesAgentUseCase struct {
 	kube Kubernetes
+	tel  Telemetry
 }
 
 type ReconcileParam struct {
 	NamespacedName types.NamespacedName
 }
 
-func NewHermesAgentUseCase(kube Kubernetes) *HermesAgentUseCase {
+func NewHermesAgentUseCase(kube Kubernetes, tel Telemetry) *HermesAgentUseCase {
 	return &HermesAgentUseCase{
-		kube,
+		kube: kube,
+		tel:  tel,
 	}
 }
 
 func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam) error {
+	start := time.Now()
+	defer func() {
+		u.tel.ObserveReconcileDuration(ctx, ObserveReconcileDurationParam{Seconds: time.Since(start).Seconds()})
+	}()
+	u.tel.Info(ctx, "Starting reconciliation", "namespacedName", param.NamespacedName)
+
 	ha, err := u.kube.GetHermesAgent(ctx, GetHermesAgentParam(param))
 	if err != nil {
+		u.tel.Error(ctx, err, "Failed to get HermesAgent", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
 	if ha == nil {
+		u.tel.Info(ctx, "HermesAgent not found", "namespacedName", param.NamespacedName)
+		u.tel.IncNotFound(ctx, IncNotFoundParam{})
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultNotFound})
 		return nil
 	}
 
 	if err := u.reconcileConfigMap(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile ConfigMap", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
+	u.tel.Info(ctx, "ConfigMap reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileServiceAccount(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile ServiceAccount", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
+	u.tel.Info(ctx, "ServiceAccount reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileRole(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile Role", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}
+	u.tel.Info(ctx, "Role reconciled successfully", "namespacedName", param.NamespacedName)
 
-	return u.reconcileStatefulSet(ctx, ha)
+	if err := u.reconcileStatefulSet(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile StatefulSet", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
+		return err
+	}
+	u.tel.Info(ctx, "StatefulSet reconciled successfully", "namespacedName", param.NamespacedName)
+
+	u.tel.Info(ctx, "Reconciliation completed successfully", "namespacedName", param.NamespacedName)
+	u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultSuccess})
+	return nil
 }
 
 func (u *HermesAgentUseCase) reconcileServiceAccount(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
@@ -75,16 +107,22 @@ func (u *HermesAgentUseCase) reconcileServiceAccount(ctx context.Context, ha *ag
 		if existing == nil {
 			return nil
 		}
-		return u.kube.DeleteServiceAccount(ctx, DeleteServiceAccountParam{NamespacedName: nsName})
+		err := u.kube.DeleteServiceAccount(ctx, DeleteServiceAccountParam{NamespacedName: nsName})
+		u.tel.IncServiceAccountOperation(ctx, IncServiceAccountOperationParam{Operation: OperationDelete, Result: resultOf(err)})
+		return err
 	}
 
 	desired := u.buildServiceAccount(ha)
 	if existing != nil {
 		desired.ResourceVersion = existing.ResourceVersion
-		return u.kube.UpdateServiceAccountOwnedByHermesAgent(ctx, UpdateServiceAccountParam{HermesAgent: ha, ServiceAccount: desired})
+		err := u.kube.UpdateServiceAccountOwnedByHermesAgent(ctx, UpdateServiceAccountParam{HermesAgent: ha, ServiceAccount: desired})
+		u.tel.IncServiceAccountOperation(ctx, IncServiceAccountOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
+		return err
 	}
 
-	return u.kube.CreateServiceAccountOwnedByHermesAgent(ctx, CreateServiceAccountOfHermesAgentParam{HermesAgent: ha, ServiceAccount: desired})
+	err = u.kube.CreateServiceAccountOwnedByHermesAgent(ctx, CreateServiceAccountOfHermesAgentParam{HermesAgent: ha, ServiceAccount: desired})
+	u.tel.IncServiceAccountOperation(ctx, IncServiceAccountOperationParam{Operation: OperationCreate, Result: resultOf(err)})
+	return err
 }
 
 func (u *HermesAgentUseCase) buildServiceAccount(ha *agentsv1alpha1.HermesAgent) *corev1.ServiceAccount {
@@ -120,12 +158,16 @@ func (u *HermesAgentUseCase) reconcileRole(ctx context.Context, ha *agentsv1alph
 
 	if len(rules) == 0 || saName == "" {
 		if existingRB != nil {
-			if err := u.kube.DeleteRoleBinding(ctx, DeleteRoleBindingParam{NamespacedName: nsName}); err != nil {
+			err := u.kube.DeleteRoleBinding(ctx, DeleteRoleBindingParam{NamespacedName: nsName})
+			u.tel.IncRoleBindingOperation(ctx, IncRoleBindingOperationParam{Operation: OperationDelete, Result: resultOf(err)})
+			if err != nil {
 				return err
 			}
 		}
 		if existingRole != nil {
-			if err := u.kube.DeleteRole(ctx, DeleteRoleParam{NamespacedName: nsName}); err != nil {
+			err := u.kube.DeleteRole(ctx, DeleteRoleParam{NamespacedName: nsName})
+			u.tel.IncRoleOperation(ctx, IncRoleOperationParam{Operation: OperationDelete, Result: resultOf(err)})
+			if err != nil {
 				return err
 			}
 		}
@@ -135,11 +177,15 @@ func (u *HermesAgentUseCase) reconcileRole(ctx context.Context, ha *agentsv1alph
 	desiredRole := u.buildRole(ha, rules)
 	if existingRole != nil {
 		desiredRole.ResourceVersion = existingRole.ResourceVersion
-		if err := u.kube.UpdateRoleOwnedByHermesAgent(ctx, UpdateRoleParam{HermesAgent: ha, Role: desiredRole}); err != nil {
+		err := u.kube.UpdateRoleOwnedByHermesAgent(ctx, UpdateRoleParam{HermesAgent: ha, Role: desiredRole})
+		u.tel.IncRoleOperation(ctx, IncRoleOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
+		if err != nil {
 			return err
 		}
 	} else {
-		if err := u.kube.CreateRoleOwnedByHermesAgent(ctx, CreateRoleOfHermesAgentParam{HermesAgent: ha, Role: desiredRole}); err != nil {
+		err := u.kube.CreateRoleOwnedByHermesAgent(ctx, CreateRoleOfHermesAgentParam{HermesAgent: ha, Role: desiredRole})
+		u.tel.IncRoleOperation(ctx, IncRoleOperationParam{Operation: OperationCreate, Result: resultOf(err)})
+		if err != nil {
 			return err
 		}
 	}
@@ -147,9 +193,13 @@ func (u *HermesAgentUseCase) reconcileRole(ctx context.Context, ha *agentsv1alph
 	desiredRB := u.buildRoleBinding(ha, saName)
 	if existingRB != nil {
 		desiredRB.ResourceVersion = existingRB.ResourceVersion
-		return u.kube.UpdateRoleBindingOwnedByHermesAgent(ctx, UpdateRoleBindingParam{HermesAgent: ha, RoleBinding: desiredRB})
+		err := u.kube.UpdateRoleBindingOwnedByHermesAgent(ctx, UpdateRoleBindingParam{HermesAgent: ha, RoleBinding: desiredRB})
+		u.tel.IncRoleBindingOperation(ctx, IncRoleBindingOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
+		return err
 	}
-	return u.kube.CreateRoleBindingOwnedByHermesAgent(ctx, CreateRoleBindingOfHermesAgentParam{HermesAgent: ha, RoleBinding: desiredRB})
+	err = u.kube.CreateRoleBindingOwnedByHermesAgent(ctx, CreateRoleBindingOfHermesAgentParam{HermesAgent: ha, RoleBinding: desiredRB})
+	u.tel.IncRoleBindingOperation(ctx, IncRoleBindingOperationParam{Operation: OperationCreate, Result: resultOf(err)})
+	return err
 }
 
 func (u *HermesAgentUseCase) buildRole(ha *agentsv1alpha1.HermesAgent, rules []agentsv1alpha1.RBACRule) *rbacv1.Role {
@@ -207,13 +257,24 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 
 	if cm != nil {
 		desired.ResourceVersion = cm.ResourceVersion
-		return u.kube.UpdateConfigMapOwnedByHermesAgent(ctx, UpdateConfigMapParam{HermesAgent: ha, ConfigMap: desired})
+		err := u.kube.UpdateConfigMapOwnedByHermesAgent(ctx, UpdateConfigMapParam{HermesAgent: ha, ConfigMap: desired})
+		u.tel.IncConfigMapOperation(ctx, IncConfigMapOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
+		return err
 	}
 
-	return u.kube.CreateConfigMapOwnedByHermesAgent(ctx, CreateConfigMapOfHermesAgentParam{
+	err = u.kube.CreateConfigMapOwnedByHermesAgent(ctx, CreateConfigMapOfHermesAgentParam{
 		HermesAgent: ha,
 		ConfigMap:   desired,
 	})
+	u.tel.IncConfigMapOperation(ctx, IncConfigMapOperationParam{Operation: OperationCreate, Result: resultOf(err)})
+	return err
+}
+
+func resultOf(err error) Result {
+	if err != nil {
+		return ResultError
+	}
+	return ResultSuccess
 }
 
 func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
@@ -252,13 +313,17 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 
 	if sts != nil {
 		desired.ResourceVersion = sts.ResourceVersion
-		return u.kube.UpdateStatefulSetOwnedByHermesAgent(ctx, UpdateStatefulSetParam{HermesAgent: ha, StatefulSet: desired})
+		err := u.kube.UpdateStatefulSetOwnedByHermesAgent(ctx, UpdateStatefulSetParam{HermesAgent: ha, StatefulSet: desired})
+		u.tel.IncStatefulSetOperation(ctx, IncStatefulSetOperationParam{Operation: OperationUpdate, Result: resultOf(err)})
+		return err
 	}
 
-	return u.kube.CreateStatefulSetOwnedByHermesAgent(ctx, CreateStatefulSetOfHermesAgentParam{
+	err = u.kube.CreateStatefulSetOwnedByHermesAgent(ctx, CreateStatefulSetOfHermesAgentParam{
 		HermesAgent: ha,
 		StatefulSet: desired,
 	})
+	u.tel.IncStatefulSetOperation(ctx, IncStatefulSetOperationParam{Operation: OperationCreate, Result: resultOf(err)})
+	return err
 }
 
 func configMapDataHash(data map[string]string) string {

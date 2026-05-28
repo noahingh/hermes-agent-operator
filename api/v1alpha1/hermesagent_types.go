@@ -252,7 +252,6 @@ func (s *HermesSecurity) GetRBAC() *RBACSpec {
 	return s.RBAC
 }
 
-
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
 	// image overrides the container image used for the hermes-agent container
