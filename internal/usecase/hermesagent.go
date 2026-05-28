@@ -406,6 +406,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "dshm", MountPath: "/dev/shm"},
 				{Name: "data", MountPath: "/opt/data"},
+				{Name: "tmp", MountPath: "/tmp"},
 			},
 		},
 	}
@@ -418,6 +419,10 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 					SizeLimit: &sizeLimit,
 				},
 			},
+		},
+		{
+			Name:         "tmp",
+			VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 		},
 		{
 			Name: "bootstrap",
@@ -477,6 +482,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "data", MountPath: "/opt/data"},
 				{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
+				{Name: "tmp", MountPath: "/tmp"},
 			},
 		})
 	}
@@ -498,6 +504,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "data", MountPath: "/opt/data"},
 				{Name: "bootstrap", MountPath: "/bootstrap", ReadOnly: true},
+				{Name: "tmp", MountPath: "/tmp"},
 			},
 		})
 	}
@@ -517,6 +524,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			SecurityContext: sec.GetContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "data", MountPath: "/opt/data"},
+				{Name: "tmp", MountPath: "/tmp"},
 			},
 		})
 	}
@@ -536,6 +544,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			SecurityContext: sec.GetContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "data", MountPath: "/opt/data"},
+				{Name: "tmp", MountPath: "/tmp"},
 			},
 		})
 	}
@@ -555,6 +564,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			SecurityContext: sec.GetContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: "data", MountPath: "/opt/data"},
+				{Name: "tmp", MountPath: "/tmp"},
 			},
 		})
 	}
