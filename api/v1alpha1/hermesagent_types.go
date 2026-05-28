@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -157,6 +158,40 @@ type HermesSecurity struct {
 	// rbac configures the ServiceAccount and Role used by the HermesAgent pod.
 	// +optional
 	RBAC *RBAC `json:"rbac,omitempty"`
+	// networkPolicy configures network isolation for the HermesAgent pod.
+	// +optional
+	NetworkPolicy *NetworkPolicy `json:"networkPolicy,omitempty"`
+}
+
+// NetworkPolicy configures network isolation for the Hermes agent instance
+type NetworkPolicy struct {
+	// Enabled enables network policy creation
+	// +kubebuilder:default=true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// AllowedIngressCIDRs is a list of CIDRs allowed to access this instance
+	// +optional
+	AllowedIngressCIDRs []string `json:"allowedIngressCIDRs,omitempty"`
+
+	// AllowedIngressNamespaces is a list of namespace names allowed to access this instance
+	// +optional
+	AllowedIngressNamespaces []string `json:"allowedIngressNamespaces,omitempty"`
+
+	// AllowedEgressCIDRs is a list of CIDRs this instance can reach
+	// Default allows all egress on port 443 for AI APIs
+	// +optional
+	AllowedEgressCIDRs []string `json:"allowedEgressCIDRs,omitempty"`
+
+	// AllowDNS allows DNS resolution (port 53)
+	// +kubebuilder:default=true
+	// +optional
+	AllowDNS *bool `json:"allowDNS,omitempty"`
+
+	// AdditionalEgress appends custom egress rules to the default DNS + HTTPS rules.
+	// Use this to allow traffic to cluster-internal services on non-standard ports.
+	// +optional
+	AdditionalEgress []networkingv1.NetworkPolicyEgressRule `json:"additionalEgress,omitempty"`
 }
 
 // RBAC configures RBAC for the HermesAgent instance.
@@ -251,6 +286,32 @@ func (s *HermesSecurity) GetRBAC() *RBAC {
 		return nil
 	}
 	return s.RBAC
+}
+
+func (s *HermesSecurity) GetNetworkPolicy() *NetworkPolicy {
+	if s == nil {
+		return nil
+	}
+	return s.NetworkPolicy
+}
+
+// IsEnabled reports whether a NetworkPolicy should be created. Omitting the
+// block entirely means no policy; including it enables one by default.
+func (n *NetworkPolicy) IsEnabled() bool {
+	if n == nil {
+		return false
+	}
+	if n.Enabled == nil {
+		return true
+	}
+	return *n.Enabled
+}
+
+func (n *NetworkPolicy) ShouldAllowDNS() bool {
+	if n == nil || n.AllowDNS == nil {
+		return true
+	}
+	return *n.AllowDNS
 }
 
 // Hermes defines the hermes-specific section of the spec.

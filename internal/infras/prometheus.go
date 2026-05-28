@@ -22,6 +22,7 @@ type PrometheusTelemetry struct {
 	roleBindingOps    *prometheus.CounterVec
 	serviceOps        *prometheus.CounterVec
 	ingressOps        *prometheus.CounterVec
+	networkPolicyOps  *prometheus.CounterVec
 	notFoundTotal     prometheus.Counter
 }
 
@@ -64,6 +65,10 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 			Name: "hermesagent_ingress_operations_total",
 			Help: "Total number of Ingress create/update/delete operations.",
 		}, []string{"operation", "result"}),
+		networkPolicyOps: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "hermesagent_networkpolicy_operations_total",
+			Help: "Total number of NetworkPolicy create/update/delete operations.",
+		}, []string{"operation", "result"}),
 		notFoundTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "hermesagent_not_found_total",
 			Help: "Total number of reconciliations where the HermesAgent was not found.",
@@ -80,6 +85,7 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 		m.roleBindingOps,
 		m.serviceOps,
 		m.ingressOps,
+		m.networkPolicyOps,
 		m.notFoundTotal,
 	)
 
@@ -136,6 +142,10 @@ func (m *PrometheusTelemetry) IncServiceOperation(_ context.Context, param useca
 
 func (m *PrometheusTelemetry) IncIngressOperation(_ context.Context, param usecase.IncIngressOperationParam) {
 	m.ingressOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
+}
+
+func (m *PrometheusTelemetry) IncNetworkPolicyOperation(_ context.Context, param usecase.IncNetworkPolicyOperationParam) {
+	m.networkPolicyOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
 }
 
 func (m *PrometheusTelemetry) IncNotFound(_ context.Context, _ usecase.IncNotFoundParam) {
