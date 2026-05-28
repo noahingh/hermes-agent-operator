@@ -212,7 +212,8 @@ func (s *HermesSecurity) GetPodSecurityContext() *corev1.PodSecurityContext {
 	if s != nil && s.PodSecurityContext != nil {
 		return s.PodSecurityContext
 	}
-	uid, gid := int64(1000), int64(1000)
+	// 10000 is hermes user and group ID in the official container image.
+	uid, gid := int64(10000), int64(10000)
 	rnt := true
 	pol := corev1.FSGroupChangeOnRootMismatch
 	return &corev1.PodSecurityContext{
