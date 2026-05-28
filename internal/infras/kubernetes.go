@@ -34,6 +34,14 @@ func (k *KubernetesClient) GetHermesAgent(ctx context.Context, param usecase.Get
 	return ha, nil
 }
 
+func (k *KubernetesClient) ListHermesAgents(ctx context.Context) ([]agentsv1alpha1.HermesAgent, error) {
+	list := &agentsv1alpha1.HermesAgentList{}
+	if err := k.client.List(ctx, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 func (k *KubernetesClient) GetConfigMap(ctx context.Context, param usecase.GetConfigMapParam) (*corev1.ConfigMap, error) {
 	cm := &corev1.ConfigMap{}
 	if err := k.client.Get(ctx, param.NamespacedName, cm); err != nil {
