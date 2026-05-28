@@ -30,9 +30,14 @@ const (
 
 func (o Operation) String() string { return string(o) }
 
-// Metric collects metrics emitted by the usecase. Each metric has its own
-// specific method; the implementation owns the underlying collector names.
-type Metric interface {
+// Telemetry collects logs and metrics emitted by the usecase. Each metric has
+// its own specific method; the implementation owns the underlying collector names.
+type Telemetry interface {
+	// Logging
+	Info(ctx context.Context, msg string, keysAndValues ...any)
+	Error(ctx context.Context, err error, msg string, keysAndValues ...any)
+
+	// Metrics
 	IncReconcile(ctx context.Context, param IncReconcileParam)
 	ObserveReconcileDuration(ctx context.Context, param ObserveReconcileDurationParam)
 	IncConfigMapOperation(ctx context.Context, param IncConfigMapOperationParam)

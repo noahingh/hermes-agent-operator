@@ -6,10 +6,13 @@ import (
 	"noahingh/hermes-agent-operator/internal/usecase"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-type PrometheusMetric struct {
+const telemetryLoggerName = "hermesagent"
+
+type PrometheusTelemetry struct {
 	reconcileTotal    *prometheus.CounterVec
 	reconcileDuration prometheus.Histogram
 	configMapOps      *prometheus.CounterVec
@@ -18,8 +21,8 @@ type PrometheusMetric struct {
 	managed           prometheus.Gauge
 }
 
-func NewPrometheusMetric() *PrometheusMetric {
-	m := &PrometheusMetric{
+func NewPrometheusTelemetry() *PrometheusTelemetry {
+	m := &PrometheusTelemetry{
 		reconcileTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "hermesagent_reconcile_total",
 			Help: "Total number of HermesAgent reconciliations.",
@@ -59,26 +62,34 @@ func NewPrometheusMetric() *PrometheusMetric {
 	return m
 }
 
-func (m *PrometheusMetric) IncReconcile(_ context.Context, param usecase.IncReconcileParam) {
+func (m *PrometheusTelemetry) Info(ctx context.Context, msg string, keysAndValues ...any) {
+	log.FromContext(ctx).WithName(telemetryLoggerName).Info(msg, keysAndValues...)
+}
+
+func (m *PrometheusTelemetry) Error(ctx context.Context, err error, msg string, keysAndValues ...any) {
+	log.FromContext(ctx).WithName(telemetryLoggerName).Error(err, msg, keysAndValues...)
+}
+
+func (m *PrometheusTelemetry) IncReconcile(_ context.Context, param usecase.IncReconcileParam) {
 	m.reconcileTotal.WithLabelValues(param.Result.String()).Inc()
 }
 
-func (m *PrometheusMetric) ObserveReconcileDuration(_ context.Context, param usecase.ObserveReconcileDurationParam) {
+func (m *PrometheusTelemetry) ObserveReconcileDuration(_ context.Context, param usecase.ObserveReconcileDurationParam) {
 	m.reconcileDuration.Observe(param.Seconds)
 }
 
-func (m *PrometheusMetric) IncConfigMapOperation(_ context.Context, param usecase.IncConfigMapOperationParam) {
+func (m *PrometheusTelemetry) IncConfigMapOperation(_ context.Context, param usecase.IncConfigMapOperationParam) {
 	m.configMapOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
 }
 
-func (m *PrometheusMetric) IncStatefulSetOperation(_ context.Context, param usecase.IncStatefulSetOperationParam) {
+func (m *PrometheusTelemetry) IncStatefulSetOperation(_ context.Context, param usecase.IncStatefulSetOperationParam) {
 	m.statefulSetOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
 }
 
-func (m *PrometheusMetric) IncNotFound(_ context.Context, _ usecase.IncNotFoundParam) {
+func (m *PrometheusTelemetry) IncNotFound(_ context.Context, _ usecase.IncNotFoundParam) {
 	m.notFoundTotal.Inc()
 }
 
-func (m *PrometheusMetric) SetManaged(_ context.Context, param usecase.SetManagedParam) {
+func (m *PrometheusTelemetry) SetManaged(_ context.Context, param usecase.SetManagedParam) {
 	m.managed.Set(float64(param.Count))
 }
