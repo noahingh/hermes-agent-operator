@@ -17,6 +17,9 @@ type PrometheusTelemetry struct {
 	reconcileDuration prometheus.Histogram
 	configMapOps      *prometheus.CounterVec
 	statefulSetOps    *prometheus.CounterVec
+	serviceAccountOps *prometheus.CounterVec
+	roleOps           *prometheus.CounterVec
+	roleBindingOps    *prometheus.CounterVec
 	notFoundTotal     prometheus.Counter
 }
 
@@ -39,6 +42,18 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 			Name: "hermesagent_statefulset_operations_total",
 			Help: "Total number of StatefulSet create/update operations.",
 		}, []string{"operation", "result"}),
+		serviceAccountOps: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "hermesagent_serviceaccount_operations_total",
+			Help: "Total number of ServiceAccount create/update/delete operations.",
+		}, []string{"operation", "result"}),
+		roleOps: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "hermesagent_role_operations_total",
+			Help: "Total number of Role create/update/delete operations.",
+		}, []string{"operation", "result"}),
+		roleBindingOps: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "hermesagent_rolebinding_operations_total",
+			Help: "Total number of RoleBinding create/update/delete operations.",
+		}, []string{"operation", "result"}),
 		notFoundTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "hermesagent_not_found_total",
 			Help: "Total number of reconciliations where the HermesAgent was not found.",
@@ -50,6 +65,9 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 		m.reconcileDuration,
 		m.configMapOps,
 		m.statefulSetOps,
+		m.serviceAccountOps,
+		m.roleOps,
+		m.roleBindingOps,
 		m.notFoundTotal,
 	)
 
@@ -86,6 +104,18 @@ func (m *PrometheusTelemetry) IncConfigMapOperation(_ context.Context, param use
 
 func (m *PrometheusTelemetry) IncStatefulSetOperation(_ context.Context, param usecase.IncStatefulSetOperationParam) {
 	m.statefulSetOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
+}
+
+func (m *PrometheusTelemetry) IncServiceAccountOperation(_ context.Context, param usecase.IncServiceAccountOperationParam) {
+	m.serviceAccountOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
+}
+
+func (m *PrometheusTelemetry) IncRoleOperation(_ context.Context, param usecase.IncRoleOperationParam) {
+	m.roleOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
+}
+
+func (m *PrometheusTelemetry) IncRoleBindingOperation(_ context.Context, param usecase.IncRoleBindingOperationParam) {
+	m.roleBindingOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
 }
 
 func (m *PrometheusTelemetry) IncNotFound(_ context.Context, _ usecase.IncNotFoundParam) {
