@@ -154,6 +154,58 @@ type HermesSecurity struct {
 	// applied to the hermes-agent container and all init containers.
 	// +optional
 	ContainerSecurityContext *corev1.SecurityContext `json:"containerSecurityContext,omitempty"`
+	// rbac configures the ServiceAccount and Role used by the HermesAgent pod.
+	// +optional
+	RBAC *RBACSpec `json:"rbac,omitempty"`
+}
+
+// RBACSpec configures RBAC for the HermesAgent instance.
+type RBACSpec struct {
+	// CreateServiceAccount creates a dedicated ServiceAccount for the instance.
+	// +kubebuilder:default=true
+	// +optional
+	CreateServiceAccount *bool `json:"createServiceAccount,omitempty"`
+
+	// ServiceAccountName is the name of an existing ServiceAccount to use.
+	// Only used if CreateServiceAccount is false.
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
+	// ServiceAccountAnnotations are annotations to add to the managed ServiceAccount.
+	// Use this for cloud provider integrations like AWS IRSA or GCP Workload Identity.
+	// +optional
+	ServiceAccountAnnotations map[string]string `json:"serviceAccountAnnotations,omitempty"`
+
+	// AdditionalRules adds custom RBAC rules to the generated Role.
+	// +optional
+	AdditionalRules []RBACRule `json:"additionalRules,omitempty"`
+}
+
+func (r *RBACSpec) ShouldCreateServiceAccount() bool {
+	if r == nil {
+		return false
+	}
+	if r.CreateServiceAccount == nil {
+		return true
+	}
+	return *r.CreateServiceAccount
+}
+
+func (r *RBACSpec) GetAdditionalRules() []RBACRule {
+	if r == nil {
+		return nil
+	}
+	return r.AdditionalRules
+}
+
+// RBACRule represents a RBAC rule.
+type RBACRule struct {
+	// APIGroups is the name of the APIGroup that contains the resources.
+	APIGroups []string `json:"apiGroups"`
+	// Resources is a list of resources this rule applies to.
+	Resources []string `json:"resources"`
+	// Verbs is a list of verbs that apply to the resources.
+	Verbs []string `json:"verbs"`
 }
 
 func (s *HermesSecurity) GetPodSecurityContext() *corev1.PodSecurityContext {
@@ -192,6 +244,14 @@ func (s *HermesSecurity) GetContainerSecurityContext() *corev1.SecurityContext {
 		},
 	}
 }
+
+func (s *HermesSecurity) GetRBAC() *RBACSpec {
+	if s == nil {
+		return nil
+	}
+	return s.RBAC
+}
+
 
 // Hermes defines the hermes-specific section of the spec.
 type Hermes struct {
@@ -378,6 +438,17 @@ func (h *HermesAgent) IsSuspended() bool {
 
 func (h *HermesAgent) GetConfigMapName() string {
 	return h.Name + "-config"
+}
+
+func (h *HermesAgent) GetServiceAccountName() string {
+	r := h.GetSecurity().GetRBAC()
+	if r.ShouldCreateServiceAccount() {
+		return h.Name
+	}
+	if r != nil {
+		return r.ServiceAccountName
+	}
+	return ""
 }
 
 func (h *HermesAgent) GetHermes() *Hermes {

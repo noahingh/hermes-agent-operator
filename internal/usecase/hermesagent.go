@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"maps"
 	agentsv1alpha1 "noahingh/hermes-agent-operator/api/v1alpha1"
 	"sort"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,7 +51,144 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 		return err
 	}
 
+	if err := u.reconcileServiceAccount(ctx, ha); err != nil {
+		return err
+	}
+
+	if err := u.reconcileRole(ctx, ha); err != nil {
+		return err
+	}
+
 	return u.reconcileStatefulSet(ctx, ha)
+}
+
+func (u *HermesAgentUseCase) reconcileServiceAccount(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
+	name := ha.Name
+	nsName := types.NamespacedName{Name: name, Namespace: ha.Namespace}
+
+	existing, err := u.kube.GetServiceAccount(ctx, GetServiceAccountParam{NamespacedName: nsName})
+	if err != nil {
+		return err
+	}
+
+	if !ha.GetSecurity().GetRBAC().ShouldCreateServiceAccount() {
+		if existing == nil {
+			return nil
+		}
+		return u.kube.DeleteServiceAccount(ctx, DeleteServiceAccountParam{NamespacedName: nsName})
+	}
+
+	desired := u.buildServiceAccount(ha)
+	if existing != nil {
+		desired.ResourceVersion = existing.ResourceVersion
+		return u.kube.UpdateServiceAccountOwnedByHermesAgent(ctx, UpdateServiceAccountParam{HermesAgent: ha, ServiceAccount: desired})
+	}
+
+	return u.kube.CreateServiceAccountOwnedByHermesAgent(ctx, CreateServiceAccountOfHermesAgentParam{HermesAgent: ha, ServiceAccount: desired})
+}
+
+func (u *HermesAgentUseCase) buildServiceAccount(ha *agentsv1alpha1.HermesAgent) *corev1.ServiceAccount {
+	var annotations map[string]string
+	if r := ha.GetSecurity().GetRBAC(); r != nil && len(r.ServiceAccountAnnotations) > 0 {
+		annotations = make(map[string]string, len(r.ServiceAccountAnnotations))
+		maps.Copy(annotations, r.ServiceAccountAnnotations)
+	}
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        ha.Name,
+			Namespace:   ha.Namespace,
+			Annotations: annotations,
+		},
+	}
+}
+
+func (u *HermesAgentUseCase) reconcileRole(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
+	name := ha.Name
+	nsName := types.NamespacedName{Name: name, Namespace: ha.Namespace}
+
+	existingRole, err := u.kube.GetRole(ctx, GetRoleParam{NamespacedName: nsName})
+	if err != nil {
+		return err
+	}
+	existingRB, err := u.kube.GetRoleBinding(ctx, GetRoleBindingParam{NamespacedName: nsName})
+	if err != nil {
+		return err
+	}
+
+	rules := ha.GetSecurity().GetRBAC().GetAdditionalRules()
+	saName := ha.GetServiceAccountName()
+
+	if len(rules) == 0 || saName == "" {
+		if existingRB != nil {
+			if err := u.kube.DeleteRoleBinding(ctx, DeleteRoleBindingParam{NamespacedName: nsName}); err != nil {
+				return err
+			}
+		}
+		if existingRole != nil {
+			if err := u.kube.DeleteRole(ctx, DeleteRoleParam{NamespacedName: nsName}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	desiredRole := u.buildRole(ha, rules)
+	if existingRole != nil {
+		desiredRole.ResourceVersion = existingRole.ResourceVersion
+		if err := u.kube.UpdateRoleOwnedByHermesAgent(ctx, UpdateRoleParam{HermesAgent: ha, Role: desiredRole}); err != nil {
+			return err
+		}
+	} else {
+		if err := u.kube.CreateRoleOwnedByHermesAgent(ctx, CreateRoleOfHermesAgentParam{HermesAgent: ha, Role: desiredRole}); err != nil {
+			return err
+		}
+	}
+
+	desiredRB := u.buildRoleBinding(ha, saName)
+	if existingRB != nil {
+		desiredRB.ResourceVersion = existingRB.ResourceVersion
+		return u.kube.UpdateRoleBindingOwnedByHermesAgent(ctx, UpdateRoleBindingParam{HermesAgent: ha, RoleBinding: desiredRB})
+	}
+	return u.kube.CreateRoleBindingOwnedByHermesAgent(ctx, CreateRoleBindingOfHermesAgentParam{HermesAgent: ha, RoleBinding: desiredRB})
+}
+
+func (u *HermesAgentUseCase) buildRole(ha *agentsv1alpha1.HermesAgent, rules []agentsv1alpha1.RBACRule) *rbacv1.Role {
+	policyRules := make([]rbacv1.PolicyRule, 0, len(rules))
+	for _, r := range rules {
+		policyRules = append(policyRules, rbacv1.PolicyRule{
+			APIGroups: append([]string(nil), r.APIGroups...),
+			Resources: append([]string(nil), r.Resources...),
+			Verbs:     append([]string(nil), r.Verbs...),
+		})
+	}
+	return &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ha.Name,
+			Namespace: ha.Namespace,
+		},
+		Rules: policyRules,
+	}
+}
+
+func (u *HermesAgentUseCase) buildRoleBinding(ha *agentsv1alpha1.HermesAgent, saName string) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ha.Name,
+			Namespace: ha.Namespace,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      saName,
+				Namespace: ha.Namespace,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "Role",
+			Name:     ha.Name,
+		},
+	}
 }
 
 func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
@@ -163,7 +302,8 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 					},
 				},
 				Spec: corev1.PodSpec{
-					SecurityContext: ha.GetSecurity().GetPodSecurityContext(),
+					ServiceAccountName: ha.GetServiceAccountName(),
+					SecurityContext:    ha.GetSecurity().GetPodSecurityContext(),
 				},
 			},
 		},

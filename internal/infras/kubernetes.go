@@ -8,7 +8,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,4 +84,109 @@ func (k *KubernetesClient) UpdateStatefulSetOwnedByHermesAgent(ctx context.Conte
 		return err
 	}
 	return k.client.Update(ctx, param.StatefulSet)
+}
+
+func (k *KubernetesClient) GetServiceAccount(ctx context.Context, param usecase.GetServiceAccountParam) (*corev1.ServiceAccount, error) {
+	sa := &corev1.ServiceAccount{}
+	if err := k.client.Get(ctx, param.NamespacedName, sa); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return sa, nil
+}
+
+func (k *KubernetesClient) CreateServiceAccountOwnedByHermesAgent(ctx context.Context, param usecase.CreateServiceAccountOfHermesAgentParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.ServiceAccount, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Create(ctx, param.ServiceAccount)
+}
+
+func (k *KubernetesClient) UpdateServiceAccountOwnedByHermesAgent(ctx context.Context, param usecase.UpdateServiceAccountParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.ServiceAccount, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Update(ctx, param.ServiceAccount)
+}
+
+func (k *KubernetesClient) DeleteServiceAccount(ctx context.Context, param usecase.DeleteServiceAccountParam) error {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      param.NamespacedName.Name,
+			Namespace: param.NamespacedName.Namespace,
+		},
+	}
+	return client.IgnoreNotFound(k.client.Delete(ctx, sa))
+}
+
+func (k *KubernetesClient) GetRole(ctx context.Context, param usecase.GetRoleParam) (*rbacv1.Role, error) {
+	role := &rbacv1.Role{}
+	if err := k.client.Get(ctx, param.NamespacedName, role); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return role, nil
+}
+
+func (k *KubernetesClient) CreateRoleOwnedByHermesAgent(ctx context.Context, param usecase.CreateRoleOfHermesAgentParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.Role, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Create(ctx, param.Role)
+}
+
+func (k *KubernetesClient) UpdateRoleOwnedByHermesAgent(ctx context.Context, param usecase.UpdateRoleParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.Role, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Update(ctx, param.Role)
+}
+
+func (k *KubernetesClient) DeleteRole(ctx context.Context, param usecase.DeleteRoleParam) error {
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      param.NamespacedName.Name,
+			Namespace: param.NamespacedName.Namespace,
+		},
+	}
+	return client.IgnoreNotFound(k.client.Delete(ctx, role))
+}
+
+func (k *KubernetesClient) GetRoleBinding(ctx context.Context, param usecase.GetRoleBindingParam) (*rbacv1.RoleBinding, error) {
+	rb := &rbacv1.RoleBinding{}
+	if err := k.client.Get(ctx, param.NamespacedName, rb); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return rb, nil
+}
+
+func (k *KubernetesClient) CreateRoleBindingOwnedByHermesAgent(ctx context.Context, param usecase.CreateRoleBindingOfHermesAgentParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.RoleBinding, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Create(ctx, param.RoleBinding)
+}
+
+func (k *KubernetesClient) UpdateRoleBindingOwnedByHermesAgent(ctx context.Context, param usecase.UpdateRoleBindingParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.RoleBinding, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Update(ctx, param.RoleBinding)
+}
+
+func (k *KubernetesClient) DeleteRoleBinding(ctx context.Context, param usecase.DeleteRoleBindingParam) error {
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      param.NamespacedName.Name,
+			Namespace: param.NamespacedName.Namespace,
+		},
+	}
+	return client.IgnoreNotFound(k.client.Delete(ctx, rb))
 }
