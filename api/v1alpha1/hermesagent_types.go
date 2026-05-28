@@ -540,6 +540,15 @@ type HermesAgentSpec struct {
 	// +kubebuilder:validation:MaxItems=10
 	// +optional
 	InitContainers []corev1.Container `json:"initContainers,omitempty"`
+
+	// Sidecars is a list of additional sidecar containers to inject into the pod.
+	// Use this for custom sidecars like database proxies, log forwarders, or service meshes.
+	// +optional
+	Sidecars []corev1.Container `json:"sidecars,omitempty"`
+
+	// ExtraVolumes is a list of additional volumes to make available to the pod's containers.
+	// +optional
+	ExtraVolumes []corev1.Volume `json:"extraVolumes,omitempty"`
 }
 
 // HermesAgentStatus defines the observed state of HermesAgent.
@@ -618,6 +627,14 @@ func (h *HermesAgent) GetNetworking() *Networking {
 
 func (h *HermesAgent) GetInitContainers() []corev1.Container {
 	return h.Spec.InitContainers
+}
+
+func (h *HermesAgent) GetSidecars() []corev1.Container {
+	return h.Spec.Sidecars
+}
+
+func (h *HermesAgent) GetExtraVolumes() []corev1.Volume {
+	return h.Spec.ExtraVolumes
 }
 
 // +kubebuilder:object:root=true

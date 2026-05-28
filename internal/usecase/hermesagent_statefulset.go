@@ -93,6 +93,12 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 	// additional user-provided init containers run after the operator-managed ones.
 	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ha.GetInitContainers()...)
 
+	// additional user-provided sidecar containers run alongside the hermes-agent container.
+	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, ha.GetSidecars()...)
+
+	// additional user-provided volumes.
+	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, ha.GetExtraVolumes()...)
+
 	return sts
 }
 
