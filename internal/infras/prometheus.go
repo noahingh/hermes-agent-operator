@@ -18,7 +18,6 @@ type PrometheusTelemetry struct {
 	configMapOps      *prometheus.CounterVec
 	statefulSetOps    *prometheus.CounterVec
 	notFoundTotal     prometheus.Counter
-	managed           prometheus.Gauge
 }
 
 func NewPrometheusTelemetry() *PrometheusTelemetry {
@@ -44,10 +43,6 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 			Name: "hermesagent_not_found_total",
 			Help: "Total number of reconciliations where the HermesAgent was not found.",
 		}),
-		managed: prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: "hermesagent_managed_total",
-			Help: "Current number of HermesAgent resources managed by the operator.",
-		}),
 	}
 
 	metrics.Registry.MustRegister(
@@ -56,7 +51,6 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 		m.configMapOps,
 		m.statefulSetOps,
 		m.notFoundTotal,
-		m.managed,
 	)
 
 	return m
@@ -88,8 +82,4 @@ func (m *PrometheusTelemetry) IncStatefulSetOperation(_ context.Context, param u
 
 func (m *PrometheusTelemetry) IncNotFound(_ context.Context, _ usecase.IncNotFoundParam) {
 	m.notFoundTotal.Inc()
-}
-
-func (m *PrometheusTelemetry) SetManaged(_ context.Context, param usecase.SetManagedParam) {
-	m.managed.Set(float64(param.Count))
 }

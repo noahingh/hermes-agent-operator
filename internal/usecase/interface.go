@@ -43,7 +43,6 @@ type Telemetry interface {
 	IncConfigMapOperation(ctx context.Context, param IncConfigMapOperationParam)
 	IncStatefulSetOperation(ctx context.Context, param IncStatefulSetOperationParam)
 	IncNotFound(ctx context.Context, param IncNotFoundParam)
-	SetManaged(ctx context.Context, param SetManagedParam)
 }
 
 type IncReconcileParam struct {
@@ -66,13 +65,8 @@ type IncStatefulSetOperationParam struct {
 
 type IncNotFoundParam struct{}
 
-type SetManagedParam struct {
-	Count int
-}
-
 type Kubernetes interface {
 	GetHermesAgent(ctx context.Context, param GetHermesAgentParam) (*agentsv1alpha1.HermesAgent, error)
-	ListHermesAgents(ctx context.Context) ([]agentsv1alpha1.HermesAgent, error)
 
 	GetConfigMap(ctx context.Context, param GetConfigMapParam) (*corev1.ConfigMap, error)
 	CreateConfigMapOwnedByHermesAgent(ctx context.Context, param CreateConfigMapOfHermesAgentParam) error

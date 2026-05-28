@@ -45,7 +45,6 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 	start := time.Now()
 	defer func() {
 		u.tel.ObserveReconcileDuration(ctx, ObserveReconcileDurationParam{Seconds: time.Since(start).Seconds()})
-		u.updateManagedGauge(ctx)
 	}()
 
 	ha, err := u.kube.GetHermesAgent(ctx, GetHermesAgentParam(param))
@@ -75,15 +74,6 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 
 	u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultSuccess})
 	return nil
-}
-
-func (u *HermesAgentUseCase) updateManagedGauge(ctx context.Context) {
-	list, err := u.kube.ListHermesAgents(ctx)
-	if err != nil {
-		u.tel.Error(ctx, err, "Failed to list HermesAgents for managed gauge")
-		return
-	}
-	u.tel.SetManaged(ctx, SetManagedParam{Count: len(list)})
 }
 
 func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
