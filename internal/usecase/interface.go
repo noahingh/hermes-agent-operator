@@ -34,6 +34,7 @@ func (o Operation) String() string { return string(o) }
 // its own specific method; the implementation owns the underlying collector names.
 type Telemetry interface {
 	// Logging
+	Debug(ctx context.Context, msg string, keysAndValues ...any)
 	Info(ctx context.Context, msg string, keysAndValues ...any)
 	Error(ctx context.Context, err error, msg string, keysAndValues ...any)
 

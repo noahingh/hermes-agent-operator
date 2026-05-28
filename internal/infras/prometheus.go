@@ -56,6 +56,14 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 	return m
 }
 
+// debugVerbosity is the logr V-level used for debug logs. logr has no Debug
+// method; higher V-levels are more verbose, and V(1) is the debug convention.
+const debugVerbosity = 1
+
+func (m *PrometheusTelemetry) Debug(ctx context.Context, msg string, keysAndValues ...any) {
+	log.FromContext(ctx).WithName(telemetryLoggerName).V(debugVerbosity).Info(msg, keysAndValues...)
+}
+
 func (m *PrometheusTelemetry) Info(ctx context.Context, msg string, keysAndValues ...any) {
 	log.FromContext(ctx).WithName(telemetryLoggerName).Info(msg, keysAndValues...)
 }
