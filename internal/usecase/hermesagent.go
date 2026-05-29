@@ -93,6 +93,13 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 	}
 	u.tel.Info(ctx, "Ingress reconciled successfully", "namespacedName", param.NamespacedName)
 
+	if err := u.reconcileNetworkPolicy(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile NetworkPolicy", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
+		return err
+	}
+	u.tel.Info(ctx, "NetworkPolicy reconciled successfully", "namespacedName", param.NamespacedName)
+
 	u.tel.Info(ctx, "Reconciliation completed successfully", "namespacedName", param.NamespacedName)
 	u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultSuccess})
 	return nil

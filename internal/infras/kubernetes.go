@@ -251,3 +251,38 @@ func (k *KubernetesClient) DeleteIngress(ctx context.Context, param usecase.Dele
 	}
 	return client.IgnoreNotFound(k.client.Delete(ctx, ing))
 }
+
+func (k *KubernetesClient) GetNetworkPolicy(ctx context.Context, param usecase.GetNetworkPolicyParam) (*networkingv1.NetworkPolicy, error) {
+	np := &networkingv1.NetworkPolicy{}
+	if err := k.client.Get(ctx, param.NamespacedName, np); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return np, nil
+}
+
+func (k *KubernetesClient) CreateNetworkPolicyOwnedByHermesAgent(ctx context.Context, param usecase.CreateNetworkPolicyOfHermesAgentParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.NetworkPolicy, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Create(ctx, param.NetworkPolicy)
+}
+
+func (k *KubernetesClient) UpdateNetworkPolicyOwnedByHermesAgent(ctx context.Context, param usecase.UpdateNetworkPolicyParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.NetworkPolicy, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Update(ctx, param.NetworkPolicy)
+}
+
+func (k *KubernetesClient) DeleteNetworkPolicy(ctx context.Context, param usecase.DeleteNetworkPolicyParam) error {
+	np := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      param.NamespacedName.Name,
+			Namespace: param.NamespacedName.Namespace,
+		},
+	}
+	return client.IgnoreNotFound(k.client.Delete(ctx, np))
+}

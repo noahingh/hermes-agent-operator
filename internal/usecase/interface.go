@@ -51,6 +51,7 @@ type Telemetry interface {
 	IncRoleBindingOperation(ctx context.Context, param IncRoleBindingOperationParam)
 	IncServiceOperation(ctx context.Context, param IncServiceOperationParam)
 	IncIngressOperation(ctx context.Context, param IncIngressOperationParam)
+	IncNetworkPolicyOperation(ctx context.Context, param IncNetworkPolicyOperationParam)
 	IncNotFound(ctx context.Context, param IncNotFoundParam)
 }
 
@@ -97,6 +98,11 @@ type IncIngressOperationParam struct {
 	Result    Result
 }
 
+type IncNetworkPolicyOperationParam struct {
+	Operation Operation
+	Result    Result
+}
+
 type IncNotFoundParam struct{}
 
 type Kubernetes interface {
@@ -133,6 +139,11 @@ type Kubernetes interface {
 	CreateIngressOwnedByHermesAgent(ctx context.Context, param CreateIngressOfHermesAgentParam) error
 	UpdateIngressOwnedByHermesAgent(ctx context.Context, param UpdateIngressParam) error
 	DeleteIngress(ctx context.Context, param DeleteIngressParam) error
+
+	GetNetworkPolicy(ctx context.Context, param GetNetworkPolicyParam) (*networkingv1.NetworkPolicy, error)
+	CreateNetworkPolicyOwnedByHermesAgent(ctx context.Context, param CreateNetworkPolicyOfHermesAgentParam) error
+	UpdateNetworkPolicyOwnedByHermesAgent(ctx context.Context, param UpdateNetworkPolicyParam) error
+	DeleteNetworkPolicy(ctx context.Context, param DeleteNetworkPolicyParam) error
 }
 
 type GetHermesAgentParam struct {
@@ -250,5 +261,23 @@ type UpdateIngressParam struct {
 }
 
 type DeleteIngressParam struct {
+	NamespacedName types.NamespacedName
+}
+
+type GetNetworkPolicyParam struct {
+	NamespacedName types.NamespacedName
+}
+
+type CreateNetworkPolicyOfHermesAgentParam struct {
+	HermesAgent   *agentsv1alpha1.HermesAgent
+	NetworkPolicy *networkingv1.NetworkPolicy
+}
+
+type UpdateNetworkPolicyParam struct {
+	HermesAgent   *agentsv1alpha1.HermesAgent
+	NetworkPolicy *networkingv1.NetworkPolicy
+}
+
+type DeleteNetworkPolicyParam struct {
 	NamespacedName types.NamespacedName
 }
