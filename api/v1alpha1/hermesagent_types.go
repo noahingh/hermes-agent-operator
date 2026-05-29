@@ -549,6 +549,12 @@ type HermesAgentSpec struct {
 	// ExtraVolumes is a list of additional volumes to make available to the pod's containers.
 	// +optional
 	ExtraVolumes []corev1.Volume `json:"extraVolumes,omitempty"`
+
+	// ExtraVolumeMounts adds additional volume mounts to the main container.
+	// Use with ExtraVolumes to mount ConfigMaps, Secrets, NFS shares, or CSI volumes.
+	// +kubebuilder:validation:MaxItems=10
+	// +optional
+	ExtraVolumeMounts []corev1.VolumeMount `json:"extraVolumeMounts,omitempty"`
 }
 
 // HermesAgentStatus defines the observed state of HermesAgent.
@@ -635,6 +641,10 @@ func (h *HermesAgent) GetSidecars() []corev1.Container {
 
 func (h *HermesAgent) GetExtraVolumes() []corev1.Volume {
 	return h.Spec.ExtraVolumes
+}
+
+func (h *HermesAgent) GetExtraVolumeMounts() []corev1.VolumeMount {
+	return h.Spec.ExtraVolumeMounts
 }
 
 // +kubebuilder:object:root=true

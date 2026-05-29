@@ -133,11 +133,11 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			EnvFrom:         ha.GetHermes().GetEnvFrom(),
 			Resources:       ha.GetHermes().GetResources(),
 			SecurityContext: sec.GetContainerSecurityContext(),
-			VolumeMounts: []corev1.VolumeMount{
+			VolumeMounts: append([]corev1.VolumeMount{
 				{Name: "dshm", MountPath: "/dev/shm"},
 				{Name: "data", MountPath: "/opt/data"},
 				{Name: "tmp", MountPath: "/tmp"},
-			},
+			}, ha.GetExtraVolumeMounts()...),
 		},
 	}
 	volumes := []corev1.Volume{
