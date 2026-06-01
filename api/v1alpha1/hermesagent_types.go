@@ -371,6 +371,44 @@ type Hermes struct {
 	// resources overrides the resource requests and limits for the hermes-agent container.
 	// +optional
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// probes overrides the health probe configuration for the hermes-agent container.
+	// Probes target the GET /health endpoint on the gateway port.
+	// +optional
+	Probes *Probes `json:"probes,omitempty"`
+}
+
+// Probes defines health probe configuration for the hermes-agent container.
+type Probes struct {
+	// liveness configures the liveness probe. Disabled unless set.
+	// +optional
+	Liveness *Probe `json:"liveness,omitempty"`
+	// readiness configures the readiness probe. Enabled by default.
+	// +optional
+	Readiness *Probe `json:"readiness,omitempty"`
+	// startup configures the startup probe. Disabled unless set.
+	// +optional
+	Startup *Probe `json:"startup,omitempty"`
+}
+
+// Probe defines a single health probe's tunable parameters. The probe action
+// (HTTP GET /health on the gateway port) is fixed by the operator.
+type Probe struct {
+	// enabled enables the probe.
+	// +kubebuilder:default=true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// initialDelaySeconds is the seconds after container start before probing.
+	// +optional
+	InitialDelaySeconds *int32 `json:"initialDelaySeconds,omitempty"`
+	// periodSeconds is how often (in seconds) to perform the probe.
+	// +optional
+	PeriodSeconds *int32 `json:"periodSeconds,omitempty"`
+	// timeoutSeconds is the seconds after which the probe times out.
+	// +optional
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+	// failureThreshold is the number of retries before giving up.
+	// +optional
+	FailureThreshold *int32 `json:"failureThreshold,omitempty"`
 }
 
 func (h *Hermes) GetConfig() *apiextensionsv1.JSON {
@@ -450,6 +488,42 @@ func (h *Hermes) GetResources() corev1.ResourceRequirements {
 			corev1.ResourceMemory: resource.MustParse("1Gi"),
 		},
 	}
+}
+
+func (h *Hermes) GetProbes() *Probes {
+	if h == nil {
+		return nil
+	}
+	return h.Probes
+}
+
+func (p *Probes) GetLiveness() *Probe {
+	if p == nil {
+		return nil
+	}
+	return p.Liveness
+}
+
+func (p *Probes) GetReadiness() *Probe {
+	if p == nil {
+		return nil
+	}
+	return p.Readiness
+}
+
+func (p *Probes) GetStartup() *Probe {
+	if p == nil {
+		return nil
+	}
+	return p.Startup
+}
+
+// IsEnabled reports whether the probe is enabled (default true when unset).
+func (p *Probe) IsEnabled() bool {
+	if p == nil || p.Enabled == nil {
+		return true
+	}
+	return *p.Enabled
 }
 
 func (h *Hermes) GetImage() string {

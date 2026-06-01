@@ -27,6 +27,16 @@ spec:
       persistence:
         enabled: true
         size: 2Gi
+    probes:
+      # readiness is enabled by default; tune or disable it here.
+      readiness:
+        initialDelaySeconds: 5
+        periodSeconds: 10
+      # liveness and startup are opt-in: created only when configured.
+      liveness:
+        enabled: true
+        initialDelaySeconds: 15
+        periodSeconds: 20
     envFrom:
       - secretRef:
           name: ollama-api-secret
