@@ -30,7 +30,7 @@ func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agent
 		return err
 	}
 
-	desired := u.buildStatefulSet(ha)
+	desired := buildStatefulSet(ha)
 
 	if sts != nil {
 		desired.ResourceVersion = sts.ResourceVersion
@@ -60,14 +60,14 @@ func configMapDataHash(data map[string]string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))[:16]
 }
 
-func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *appsv1.StatefulSet {
+func buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *appsv1.StatefulSet {
 	replicas := int32(1)
 	if ha.IsSuspended() {
 		replicas = int32(0)
 	}
 
 	// The config hash annotation is used to trigger a rolling update of the StatefulSet when the config changes.
-	cm, _ := u.buildHermesConfigMap(ha)
+	cm, _ := buildHermesConfigMap(ha)
 	configHash := configMapDataHash(cm.Data)
 
 	sts := &appsv1.StatefulSet{
@@ -96,9 +96,9 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 		},
 	}
 
-	sts = u.buildHermesContainer(ha, sts)
-	sts = u.buildSearXNGContainer(ha, sts)
-	sts = u.buildCamofoxSidecar(ha, sts)
+	sts = buildHermesContainer(ha, sts)
+	sts = buildSearXNGContainer(ha, sts)
+	sts = buildCamofoxContainer(ha, sts)
 
 	// additional user-provided init containers run after the operator-managed ones.
 	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, ha.GetInitContainers()...)
@@ -115,7 +115,7 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 // buildHermesContainer populates the StatefulSet with all resources driven by the hermes spec:
 // the main hermes-agent container (env, envFrom), init containers for config and workspace,
 // and volumes/PVCs for persistence, bootstrap config, and shared memory.
-func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
+func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
 	const (
 		hermesDefaultPathEnv  = "/opt/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 		hermesPathEnv         = hermesDefaultPathEnv + ":/opt/hermes/.venv/bin"
@@ -235,7 +235,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{u.buildConfigScript()},
+			Args:            []string{buildConfigScript()},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
@@ -257,7 +257,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{u.buildWorkspaceScript()},
+			Args:            []string{buildWorkspaceScript()},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
@@ -278,7 +278,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{u.buildPluginsScript(plugins)},
+			Args:            []string{buildPluginsScript(plugins)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
@@ -298,7 +298,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{u.buildSkillsScript(skills)},
+			Args:            []string{buildSkillsScript(skills)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
@@ -318,7 +318,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           ha.GetHermes().GetImage(),
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{u.buildBundlesScript(bundles)},
+			Args:            []string{buildBundlesScript(bundles)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 				{Name: "PATH", Value: hermesPathEnv},
@@ -338,7 +338,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Image:           "nousresearch/hermes-agent:latest",
 			ImagePullPolicy: corev1.PullIfNotPresent,
 			Command:         []string{"/bin/sh", "-ec"},
-			Args:            []string{u.buildCronsScript(crons)},
+			Args:            []string{buildCronsScript(crons)},
 			Env: []corev1.EnvVar{
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
@@ -368,7 +368,7 @@ func findContainer(sts *appsv1.StatefulSet, name string) *corev1.Container {
 	return nil
 }
 
-func (u *HermesAgentUseCase) buildSearXNGContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
+func buildSearXNGContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
 	sts = sts.DeepCopy()
 
 	sx := ha.GetSearXNG()
@@ -449,7 +449,7 @@ func (u *HermesAgentUseCase) buildSearXNGContainer(ha *agentsv1alpha1.HermesAgen
 	return sts
 }
 
-func (u *HermesAgentUseCase) buildCamofoxSidecar(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
+func buildCamofoxContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
 	sts = sts.DeepCopy()
 
 	cx := ha.GetCamofox()
@@ -512,7 +512,7 @@ func (u *HermesAgentUseCase) buildCamofoxSidecar(ha *agentsv1alpha1.HermesAgent,
 	return sts
 }
 
-func (u *HermesAgentUseCase) buildConfigScript() string {
+func buildConfigScript() string {
 	return `set -eu
 mkdir -p "/opt/data/home"
 cp "/bootstrap/config.yaml" "/opt/data/config.yaml"
@@ -520,7 +520,7 @@ echo "Config file copied"
 `
 }
 
-func (u *HermesAgentUseCase) buildWorkspaceScript() string {
+func buildWorkspaceScript() string {
 	return fmt.Sprintf(`set -eu
 MANIFEST_FILE="/opt/data/.hermes-agent-operator/workspace-files"
 UPDATED_MANIFEST=""
@@ -565,7 +565,7 @@ func pluginDirName(identifier string) string {
 	return s
 }
 
-func (u *HermesAgentUseCase) buildPluginsScript(plugins []agentsv1alpha1.HermesPlugin) string {
+func buildPluginsScript(plugins []agentsv1alpha1.HermesPlugin) string {
 	desiredNames := make([]string, 0, len(plugins))
 	installLines := make([]string, 0, len(plugins))
 
@@ -621,7 +621,7 @@ func skillName(s agentsv1alpha1.HermesSkill) string {
 	return strings.TrimSuffix(parts[len(parts)-1], ".md")
 }
 
-func (u *HermesAgentUseCase) buildSkillsScript(skills []agentsv1alpha1.HermesSkill) string {
+func buildSkillsScript(skills []agentsv1alpha1.HermesSkill) string {
 	desiredNames := make([]string, 0, len(skills))
 	installLines := make([]string, 0, len(skills))
 
@@ -676,7 +676,7 @@ SKILLS_EOF
 `, casePattern, installScript, manifestContent)
 }
 
-func (u *HermesAgentUseCase) buildBundlesScript(bundles []agentsv1alpha1.HermesBundle) string {
+func buildBundlesScript(bundles []agentsv1alpha1.HermesBundle) string {
 	desiredNames := make([]string, 0, len(bundles))
 	createLines := make([]string, 0, len(bundles))
 
@@ -730,7 +730,7 @@ BUNDLES_EOF
 `, casePattern, createScript, manifestContent)
 }
 
-func (u *HermesAgentUseCase) buildCronsScript(crons []agentsv1alpha1.HermesCron) string {
+func buildCronsScript(crons []agentsv1alpha1.HermesCron) string {
 	desiredNames := make([]string, 0, len(crons))
 	createLines := make([]string, 0, len(crons))
 
