@@ -13,17 +13,18 @@ import (
 const telemetryLoggerName = "hermesagent"
 
 type PrometheusTelemetry struct {
-	reconcileTotal    *prometheus.CounterVec
-	reconcileDuration prometheus.Histogram
-	configMapOps      *prometheus.CounterVec
-	statefulSetOps    *prometheus.CounterVec
-	serviceAccountOps *prometheus.CounterVec
-	roleOps           *prometheus.CounterVec
-	roleBindingOps    *prometheus.CounterVec
-	serviceOps        *prometheus.CounterVec
-	ingressOps        *prometheus.CounterVec
-	networkPolicyOps  *prometheus.CounterVec
-	notFoundTotal     prometheus.Counter
+	reconcileTotal           *prometheus.CounterVec
+	reconcileDuration        prometheus.Histogram
+	configMapOps             *prometheus.CounterVec
+	persistentVolumeClaimOps *prometheus.CounterVec
+	statefulSetOps           *prometheus.CounterVec
+	serviceAccountOps        *prometheus.CounterVec
+	roleOps                  *prometheus.CounterVec
+	roleBindingOps           *prometheus.CounterVec
+	serviceOps               *prometheus.CounterVec
+	ingressOps               *prometheus.CounterVec
+	networkPolicyOps         *prometheus.CounterVec
+	notFoundTotal            prometheus.Counter
 }
 
 func NewPrometheusTelemetry() *PrometheusTelemetry {
@@ -40,6 +41,10 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 		configMapOps: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "hermesagent_configmap_operations_total",
 			Help: "Total number of ConfigMap create/update operations.",
+		}, []string{"operation", "result"}),
+		persistentVolumeClaimOps: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "hermesagent_persistentvolumeclaim_operations_total",
+			Help: "Total number of PersistentVolumeClaim create operations.",
 		}, []string{"operation", "result"}),
 		statefulSetOps: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "hermesagent_statefulset_operations_total",
@@ -79,6 +84,7 @@ func NewPrometheusTelemetry() *PrometheusTelemetry {
 		m.reconcileTotal,
 		m.reconcileDuration,
 		m.configMapOps,
+		m.persistentVolumeClaimOps,
 		m.statefulSetOps,
 		m.serviceAccountOps,
 		m.roleOps,
@@ -118,6 +124,10 @@ func (m *PrometheusTelemetry) ObserveReconcileDuration(_ context.Context, param 
 
 func (m *PrometheusTelemetry) IncConfigMapOperation(_ context.Context, param usecase.IncConfigMapOperationParam) {
 	m.configMapOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
+}
+
+func (m *PrometheusTelemetry) IncPersistentVolumeClaimOperation(_ context.Context, param usecase.IncPersistentVolumeClaimOperationParam) {
+	m.persistentVolumeClaimOps.WithLabelValues(param.Operation.String(), param.Result.String()).Inc()
 }
 
 func (m *PrometheusTelemetry) IncStatefulSetOperation(_ context.Context, param usecase.IncStatefulSetOperationParam) {

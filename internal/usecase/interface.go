@@ -45,6 +45,7 @@ type Telemetry interface {
 	IncReconcile(ctx context.Context, param IncReconcileParam)
 	ObserveReconcileDuration(ctx context.Context, param ObserveReconcileDurationParam)
 	IncConfigMapOperation(ctx context.Context, param IncConfigMapOperationParam)
+	IncPersistentVolumeClaimOperation(ctx context.Context, param IncPersistentVolumeClaimOperationParam)
 	IncStatefulSetOperation(ctx context.Context, param IncStatefulSetOperationParam)
 	IncServiceAccountOperation(ctx context.Context, param IncServiceAccountOperationParam)
 	IncRoleOperation(ctx context.Context, param IncRoleOperationParam)
@@ -64,6 +65,11 @@ type ObserveReconcileDurationParam struct {
 }
 
 type IncConfigMapOperationParam struct {
+	Operation Operation
+	Result    Result
+}
+
+type IncPersistentVolumeClaimOperationParam struct {
 	Operation Operation
 	Result    Result
 }
@@ -111,6 +117,10 @@ type Kubernetes interface {
 	GetConfigMap(ctx context.Context, param GetConfigMapParam) (*corev1.ConfigMap, error)
 	CreateConfigMapOwnedByHermesAgent(ctx context.Context, param CreateConfigMapOfHermesAgentParam) error
 	UpdateConfigMapOwnedByHermesAgent(ctx context.Context, param UpdateConfigMapParam) error
+	DeleteConfigMap(ctx context.Context, param DeleteConfigMapParam) error
+
+	GetPersistentVolumeClaim(ctx context.Context, param GetPersistentVolumeClaimParam) (*corev1.PersistentVolumeClaim, error)
+	CreatePersistentVolumeClaimOwnedByHermesAgent(ctx context.Context, param CreatePersistentVolumeClaimOfHermesAgentParam) error
 
 	GetStatefulSet(ctx context.Context, param GetStatefulSetParam) (*appsv1.StatefulSet, error)
 	CreateStatefulSetOwnedByHermesAgent(ctx context.Context, param CreateStatefulSetOfHermesAgentParam) error
@@ -162,6 +172,19 @@ type CreateConfigMapOfHermesAgentParam struct {
 type UpdateConfigMapParam struct {
 	HermesAgent *agentsv1alpha1.HermesAgent
 	ConfigMap   *corev1.ConfigMap
+}
+
+type DeleteConfigMapParam struct {
+	NamespacedName types.NamespacedName
+}
+
+type GetPersistentVolumeClaimParam struct {
+	NamespacedName types.NamespacedName
+}
+
+type CreatePersistentVolumeClaimOfHermesAgentParam struct {
+	HermesAgent           *agentsv1alpha1.HermesAgent
+	PersistentVolumeClaim *corev1.PersistentVolumeClaim
 }
 
 type GetStatefulSetParam struct {

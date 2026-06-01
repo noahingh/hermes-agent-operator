@@ -15,6 +15,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	seaxngContainerName = "searxng"
+	searxngPortName     = "searxng"
+	searxngPort          = int32(8080)
+	searxngConfigVolume  = "searxng-config"
+	searxngConfigMount   = "/etc/searxng"
+	searxngCacheVolume   = "searxng-cache"
+	searxngCacheMount    = "/var/cache/searxng"
+	searxngURL           = "http://localhost:8080"
+)
+
 func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
 	sts, err := u.kube.GetStatefulSet(ctx, GetStatefulSetParam{
 		NamespacedName: types.NamespacedName{Name: ha.Name, Namespace: ha.Namespace},
@@ -297,6 +308,69 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 				{Name: "tmp", MountPath: "/tmp"},
 			},
 		})
+	}
+
+	// searxng: optional sidecar backing the web_search tool.
+	if sx := ha.GetSearXNG(); sx.IsEnabled() {
+		containers[0].Env = append(containers[0].Env, corev1.EnvVar{Name: "SEARXNG_URL", Value: searxngURL})
+
+		containers = append(containers, corev1.Container{
+			Name:            seaxngContainerName,
+			Image:           sx.GetImage(),
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Ports: []corev1.ContainerPort{
+				{
+					Name:          searxngPortName,
+					ContainerPort: searxngPort,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			},
+			Env: append([]corev1.EnvVar{
+				{Name: "SEARXNG_BASE_URL", Value: searxngURL + "/"},
+			}, sx.GetExtraEnv()...),
+			Resources: sx.GetResources(),
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: searxngConfigVolume, MountPath: searxngConfigMount},
+				{Name: searxngCacheVolume, MountPath: searxngCacheMount},
+			},
+		})
+
+		volumes = append(volumes, corev1.Volume{
+			Name: searxngConfigVolume,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: ha.GetSearXNGName()},
+				},
+			},
+		})
+
+		// cache: existingClaim > managed PVC (<id>-searxng) > emptyDir fallback.
+		sp := sx.GetPersistence()
+		switch {
+		case sp.GetExistingClaim() != "":
+			volumes = append(volumes, corev1.Volume{
+				Name: searxngCacheVolume,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: sp.GetExistingClaim(),
+					},
+				},
+			})
+		case sp.IsEnabled():
+			volumes = append(volumes, corev1.Volume{
+				Name: searxngCacheVolume,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: ha.GetSearXNGName(),
+					},
+				},
+			})
+		default:
+			volumes = append(volumes, corev1.Volume{
+				Name:         searxngCacheVolume,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
+		}
 	}
 
 	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, initContainers...)

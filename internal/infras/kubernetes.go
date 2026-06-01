@@ -62,6 +62,34 @@ func (k *KubernetesClient) UpdateConfigMapOwnedByHermesAgent(ctx context.Context
 	return k.client.Update(ctx, param.ConfigMap)
 }
 
+func (k *KubernetesClient) DeleteConfigMap(ctx context.Context, param usecase.DeleteConfigMapParam) error {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      param.NamespacedName.Name,
+			Namespace: param.NamespacedName.Namespace,
+		},
+	}
+	return client.IgnoreNotFound(k.client.Delete(ctx, cm))
+}
+
+func (k *KubernetesClient) GetPersistentVolumeClaim(ctx context.Context, param usecase.GetPersistentVolumeClaimParam) (*corev1.PersistentVolumeClaim, error) {
+	pvc := &corev1.PersistentVolumeClaim{}
+	if err := k.client.Get(ctx, param.NamespacedName, pvc); err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return pvc, nil
+}
+
+func (k *KubernetesClient) CreatePersistentVolumeClaimOwnedByHermesAgent(ctx context.Context, param usecase.CreatePersistentVolumeClaimOfHermesAgentParam) error {
+	if err := ctrl.SetControllerReference(param.HermesAgent, param.PersistentVolumeClaim, k.scheme); err != nil {
+		return err
+	}
+	return k.client.Create(ctx, param.PersistentVolumeClaim)
+}
+
 func (k *KubernetesClient) GetStatefulSet(ctx context.Context, param usecase.GetStatefulSetParam) (*appsv1.StatefulSet, error) {
 	sts := &appsv1.StatefulSet{}
 	if err := k.client.Get(ctx, param.NamespacedName, sts); err != nil {
