@@ -71,7 +71,7 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 	}
 
 	// The config hash annotation is used to trigger a rolling update of the StatefulSet when the config changes.
-	cm, _ := u.buildConfigMap(ha)
+	cm, _ := u.buildHermesConfigMap(ha)
 	configHash := configMapDataHash(cm.Data)
 
 	sts := &appsv1.StatefulSet{
@@ -169,7 +169,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			Name: "bootstrap",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: ha.GetConfigMapName()},
+					LocalObjectReference: corev1.LocalObjectReference{Name: ha.GetHermesName()},
 				},
 			},
 		},
@@ -312,6 +312,17 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 
 	// searxng: optional sidecar backing the web_search tool.
 	if sx := ha.GetSearXNG(); sx.IsEnabled() {
+		const (
+			seaxngContainerName = "searxng"
+			searxngPortName     = "searxng"
+			searxngPort          = int32(8080)
+			searxngConfigVolume  = "searxng-config"
+			searxngConfigMount   = "/etc/searxng"
+			searxngCacheVolume   = "searxng-cache"
+			searxngCacheMount    = "/var/cache/searxng"
+			searxngURL           = "http://localhost:8080"
+		)
+
 		containers[0].Env = append(containers[0].Env, corev1.EnvVar{Name: "SEARXNG_URL", Value: searxngURL})
 
 		containers = append(containers, corev1.Container{

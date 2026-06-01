@@ -829,8 +829,8 @@ func (h *HermesAgent) IsSuspended() bool {
 	return h.Spec.Suspend != nil && *h.Spec.Suspend
 }
 
-func (h *HermesAgent) GetConfigMapName() string {
-	return h.Name + "-config"
+func (h *HermesAgent) GetHermesName() string {
+	return h.Name + "-hermes"
 }
 
 func (h *HermesAgent) GetServiceAccountName() string {

@@ -51,8 +51,8 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 		return nil
 	}
 
-	if err := u.reconcileConfigMap(ctx, ha); err != nil {
-		u.tel.Error(ctx, err, "Failed to reconcile ConfigMap", "namespacedName", param.NamespacedName)
+	if err := u.reconcileHermesConfigMap(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile Hermes ConfigMap", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
 		return err
 	}

@@ -12,8 +12,8 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
-func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
-	cmName := ha.GetConfigMapName()
+func (u *HermesAgentUseCase) reconcileHermesConfigMap(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
+	cmName := ha.GetHermesName()
 	cm, err := u.kube.GetConfigMap(ctx, GetConfigMapParam{
 		NamespacedName: types.NamespacedName{Name: cmName, Namespace: ha.Namespace},
 	})
@@ -21,7 +21,7 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 		return err
 	}
 
-	desired, err := u.buildConfigMap(ha)
+	desired, err := u.buildHermesConfigMap(ha)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (u *HermesAgentUseCase) reconcileConfigMap(ctx context.Context, ha *agentsv
 	return err
 }
 
-func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
+func (u *HermesAgentUseCase) buildHermesConfigMap(ha *agentsv1alpha1.HermesAgent) (*corev1.ConfigMap, error) {
 	data := map[string]string{}
 	if hc := ha.GetHermes().GetConfig(); hc != nil {
 		yamlBytes, err := sigsyaml.JSONToYAML(hc.Raw)
@@ -58,7 +58,7 @@ func (u *HermesAgentUseCase) buildConfigMap(ha *agentsv1alpha1.HermesAgent) (*co
 	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ha.GetConfigMapName(),
+			Name:      ha.GetHermesName(),
 			Namespace: ha.Namespace,
 		},
 		Data: data,
