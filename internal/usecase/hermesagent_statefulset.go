@@ -223,7 +223,7 @@ func (u *HermesAgentUseCase) buildStartupProbe(spec *agentsv1alpha1.Probe) *core
 // and volumes/PVCs for persistence, bootstrap config, and shared memory.
 func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
 	const (
-		hermesContainerName   = "hermes"
+		hermesContainerName   = "hermes-agent"
 		hermesGatewayPortName = hermesGatewayPortName
 		hermesGatewayPort     = hermesGatewayPort
 		hermesDefaultPathEnv  = "/opt/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
