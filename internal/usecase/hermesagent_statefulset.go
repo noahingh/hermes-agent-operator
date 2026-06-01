@@ -528,6 +528,67 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 		}
 	}
 
+	// camofox: optional sidecar backing the browser automation tool.
+	if cx := ha.GetCamofox(); cx.IsEnabled() {
+		const (
+			camofoxContainerName = "camofox"
+			camofoxPortName      = "camofox"
+			camofoxPort          = int32(9377)
+			camofoxDataVolume    = "camofox-data"
+			camofoxDataMount     = "/root/.camofox"
+			camofoxURL           = "http://localhost:9377"
+		)
+
+		// Inject CAMOFOX_URL into the hermes-agent container env so that the browser tool can find it.
+		containers[0].Env = append(containers[0].Env, corev1.EnvVar{Name: "CAMOFOX_URL", Value: camofoxURL})
+
+		containers = append(containers, corev1.Container{
+			Name:            camofoxContainerName,
+			Image:           cx.GetImage(),
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Ports: []corev1.ContainerPort{
+				{
+					Name:          camofoxPortName,
+					ContainerPort: camofoxPort,
+					Protocol:      corev1.ProtocolTCP,
+				},
+			},
+			Env:       cx.GetExtraEnv(),
+			Resources: cx.GetResources(),
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: camofoxDataVolume, MountPath: camofoxDataMount},
+			},
+		})
+
+		// data: existingClaim > managed PVC (<id>-camofox) > emptyDir fallback.
+		cp := cx.GetPersistence()
+		switch {
+		case cp.GetExistingClaim() != "":
+			volumes = append(volumes, corev1.Volume{
+				Name: camofoxDataVolume,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: cp.GetExistingClaim(),
+					},
+				},
+			})
+		case cp.IsEnabled():
+			volumes = append(volumes, corev1.Volume{
+				Name: camofoxDataVolume,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: ha.GetCamofoxName(),
+					},
+				},
+			})
+		default:
+			volumes = append(volumes, corev1.Volume{
+				Name:         camofoxDataVolume,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
+		}
+	}
+
 	sts.Spec.Template.Spec.InitContainers = append(sts.Spec.Template.Spec.InitContainers, initContainers...)
 	sts.Spec.Template.Spec.Containers = append(sts.Spec.Template.Spec.Containers, containers...)
 	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, volumes...)
