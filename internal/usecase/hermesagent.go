@@ -9,10 +9,6 @@ import (
 
 const (
 	domain                 = "hermes-agent-operator.xyz"
-	workspacePathSeparator = "--"
-	defaultPathEnv         = "/opt/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-	gatewayPortName        = "gateway"
-	gatewayPort            = int32(8642)
 )
 
 type HermesAgentUseCase struct {

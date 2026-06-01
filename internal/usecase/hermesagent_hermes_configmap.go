@@ -87,7 +87,7 @@ func (u *HermesAgentUseCase) buildHermesConfigMap(ha *agentsv1alpha1.HermesAgent
 
 	if hw := ha.GetHermes().GetWorkspace(); hw != nil {
 		for path, content := range hw.Files {
-			key := "workspace." + strings.ReplaceAll(path, "/", workspacePathSeparator)
+			key := "workspace." + strings.ReplaceAll(path, "/", hermesWorkspacePathSeparator)
 			data[key] = content
 		}
 	}
