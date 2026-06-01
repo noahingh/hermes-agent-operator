@@ -16,9 +16,9 @@ import (
 )
 
 const (
-		hermesGatewayPortName     = "gateway"
-		hermesGatewayPort         = int32(8642)
-		hermesWorkspacePathSeparator = "--"
+	hermesGatewayPortName        = "gateway"
+	hermesGatewayPort            = int32(8642)
+	hermesWorkspacePathSeparator = "--"
 )
 
 func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
@@ -113,19 +113,19 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 // and volumes/PVCs for persistence, bootstrap config, and shared memory.
 func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
 	const (
-		hermesContainerName = "hermes"
-		hermesGatewayPortName     = hermesGatewayPortName
-		hermesGatewayPort         = hermesGatewayPort
-		hermesDefaultPathEnv = "/opt/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-		hermesPathEnv = hermesDefaultPathEnv + ":/opt/hermes/.venv/bin"
-		hermesHomeVolume = "hermes-home"
-		hermesHomeMount = "/opt/data"
-		hermesDSHMVolume = "dshm"
-		hermesDSHMMount = "/dev/shm"
-		hermesTmpVolume = "tmp"
-		hermesTmpMount = "/tmp"
+		hermesContainerName   = "hermes"
+		hermesGatewayPortName = hermesGatewayPortName
+		hermesGatewayPort     = hermesGatewayPort
+		hermesDefaultPathEnv  = "/opt/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		hermesPathEnv         = hermesDefaultPathEnv + ":/opt/hermes/.venv/bin"
+		hermesHomeVolume      = "hermes-home"
+		hermesHomeMount       = "/opt/data"
+		hermesDSHMVolume      = "dshm"
+		hermesDSHMMount       = "/dev/shm"
+		hermesTmpVolume       = "tmp"
+		hermesTmpMount        = "/tmp"
 		hermesBootstrapVolume = "bootstrap"
-		hermesBootstrapMount = "/opt/hermes/bootstrap"
+		hermesBootstrapMount  = "/opt/hermes/bootstrap"
 	)
 
 	sts = sts.DeepCopy()

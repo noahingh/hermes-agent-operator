@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	domain                 = "hermes-agent-operator.xyz"
+	domain = "hermes-agent-operator.xyz"
 )
 
 type HermesAgentUseCase struct {
