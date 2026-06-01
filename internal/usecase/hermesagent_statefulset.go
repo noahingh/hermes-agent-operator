@@ -325,8 +325,8 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 			},
 			SecurityContext: sec.GetContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
-				{Name: "data", MountPath: "/opt/data"},
-				{Name: "tmp", MountPath: "/tmp"},
+				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
+				{Name: hermesTmpVolume, MountPath: hermesTmpMount},
 			},
 		})
 	}
