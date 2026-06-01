@@ -13,17 +13,17 @@ import (
 const telemetryLoggerName = "hermesagent"
 
 type PrometheusTelemetry struct {
-	reconcileTotal           *prometheus.CounterVec
-	reconcileDuration        prometheus.Histogram
-	configMapOps             *prometheus.CounterVec
-	statefulSetOps           *prometheus.CounterVec
-	serviceAccountOps        *prometheus.CounterVec
-	roleOps                  *prometheus.CounterVec
-	roleBindingOps           *prometheus.CounterVec
-	serviceOps               *prometheus.CounterVec
-	ingressOps               *prometheus.CounterVec
-	networkPolicyOps         *prometheus.CounterVec
-	notFoundTotal            prometheus.Counter
+	reconcileTotal    *prometheus.CounterVec
+	reconcileDuration prometheus.Histogram
+	configMapOps      *prometheus.CounterVec
+	statefulSetOps    *prometheus.CounterVec
+	serviceAccountOps *prometheus.CounterVec
+	roleOps           *prometheus.CounterVec
+	roleBindingOps    *prometheus.CounterVec
+	serviceOps        *prometheus.CounterVec
+	ingressOps        *prometheus.CounterVec
+	networkPolicyOps  *prometheus.CounterVec
+	notFoundTotal     prometheus.Counter
 }
 
 func NewPrometheusTelemetry() *PrometheusTelemetry {
