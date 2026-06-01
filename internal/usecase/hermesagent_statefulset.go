@@ -466,7 +466,7 @@ func camofoxSecurityContext() *corev1.SecurityContext {
 	apeFalse, roFalse, rnt, nobody := false, false, true, int64(65534)
 	return &corev1.SecurityContext{
 		AllowPrivilegeEscalation: &apeFalse,
-		ReadOnlyRootFilesystem:   &roFalse, // Chromium needs writable dirs for profiles, cache, crash dumps
+		ReadOnlyRootFilesystem:   &roFalse,
 		RunAsNonRoot:             &rnt,
 		RunAsUser:                &nobody, // nobody - headless-shell has no pre-created users
 		Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
@@ -724,7 +724,8 @@ func buildBundlesScript(bundles []agentsv1alpha1.HermesBundle) string {
 			cmd.WriteString(" --force")
 		}
 		fmt.Fprintf(&cmd, " %q", b.Name)
-		createLines = append(createLines, cmd.String())
+		// Append "|| true" to avoid failing the whole script, bundles returns non-zero exit code when the bundle already exists.
+		createLines = append(createLines, cmd.String()+" || true")
 	}
 
 	casePattern := `"` + strings.Join(desiredNames, `"|"`) + `"`
