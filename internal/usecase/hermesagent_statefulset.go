@@ -18,12 +18,12 @@ import (
 const (
 	seaxngContainerName = "searxng"
 	searxngPortName     = "searxng"
-	searxngPort          = int32(8080)
-	searxngConfigVolume  = "searxng-config"
-	searxngConfigMount   = "/etc/searxng"
-	searxngCacheVolume   = "searxng-cache"
-	searxngCacheMount    = "/var/cache/searxng"
-	searxngURL           = "http://localhost:8080"
+	searxngPort         = int32(8080)
+	searxngConfigVolume = "searxng-config"
+	searxngConfigMount  = "/etc/searxng"
+	searxngCacheVolume  = "searxng-cache"
+	searxngCacheMount   = "/var/cache/searxng"
+	searxngURL          = "http://localhost:8080"
 )
 
 func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
@@ -315,12 +315,12 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 		const (
 			seaxngContainerName = "searxng"
 			searxngPortName     = "searxng"
-			searxngPort          = int32(8080)
-			searxngConfigVolume  = "searxng-config"
-			searxngConfigMount   = "/etc/searxng"
-			searxngCacheVolume   = "searxng-cache"
-			searxngCacheMount    = "/var/cache/searxng"
-			searxngURL           = "http://localhost:8080"
+			searxngPort         = int32(8080)
+			searxngConfigVolume = "searxng-config"
+			searxngConfigMount  = "/etc/searxng"
+			searxngCacheVolume  = "searxng-cache"
+			searxngCacheMount   = "/var/cache/searxng"
+			searxngURL          = "http://localhost:8080"
 		)
 
 		containers[0].Env = append(containers[0].Env, corev1.EnvVar{Name: "SEARXNG_URL", Value: searxngURL})
