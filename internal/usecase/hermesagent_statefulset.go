@@ -74,15 +74,16 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ha.Name,
 			Namespace: ha.Namespace,
+			Labels:    resourceLabels(ha),
 		},
 		Spec: appsv1.StatefulSetSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": ha.Name},
+				MatchLabels: selectorLabels(ha),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": ha.Name},
+					Labels: resourceLabels(ha),
 					Annotations: map[string]string{
 						domain + "/config-hash": configHash,
 					},
