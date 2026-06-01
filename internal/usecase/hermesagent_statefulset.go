@@ -164,7 +164,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 	}
 	volumes := []corev1.Volume{
 		{
-			Name: hermesHomeVolume,
+			Name: hermesDSHMVolume,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{
 					Medium:    corev1.StorageMediumMemory,
