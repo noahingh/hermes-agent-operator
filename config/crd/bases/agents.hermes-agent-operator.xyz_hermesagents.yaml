@@ -2309,6 +2309,99 @@ spec:
                       - identifier
                       type: object
                     type: array
+                  probes:
+                    description: |-
+                      probes overrides the health probe configuration for the hermes-agent container.
+                      Probes target the GET /health endpoint on the gateway port.
+                    properties:
+                      liveness:
+                        description: liveness configures the liveness probe. Disabled
+                          unless set.
+                        properties:
+                          enabled:
+                            default: true
+                            description: enabled enables the probe.
+                            type: boolean
+                          failureThreshold:
+                            description: failureThreshold is the number of retries
+                              before giving up.
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: initialDelaySeconds is the seconds after
+                              container start before probing.
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            description: periodSeconds is how often (in seconds) to
+                              perform the probe.
+                            format: int32
+                            type: integer
+                          timeoutSeconds:
+                            description: timeoutSeconds is the seconds after which
+                              the probe times out.
+                            format: int32
+                            type: integer
+                        type: object
+                      readiness:
+                        description: readiness configures the readiness probe. Enabled
+                          by default.
+                        properties:
+                          enabled:
+                            default: true
+                            description: enabled enables the probe.
+                            type: boolean
+                          failureThreshold:
+                            description: failureThreshold is the number of retries
+                              before giving up.
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: initialDelaySeconds is the seconds after
+                              container start before probing.
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            description: periodSeconds is how often (in seconds) to
+                              perform the probe.
+                            format: int32
+                            type: integer
+                          timeoutSeconds:
+                            description: timeoutSeconds is the seconds after which
+                              the probe times out.
+                            format: int32
+                            type: integer
+                        type: object
+                      startup:
+                        description: startup configures the startup probe. Disabled
+                          unless set.
+                        properties:
+                          enabled:
+                            default: true
+                            description: enabled enables the probe.
+                            type: boolean
+                          failureThreshold:
+                            description: failureThreshold is the number of retries
+                              before giving up.
+                            format: int32
+                            type: integer
+                          initialDelaySeconds:
+                            description: initialDelaySeconds is the seconds after
+                              container start before probing.
+                            format: int32
+                            type: integer
+                          periodSeconds:
+                            description: periodSeconds is how often (in seconds) to
+                              perform the probe.
+                            format: int32
+                            type: integer
+                          timeoutSeconds:
+                            description: timeoutSeconds is the seconds after which
+                              the probe times out.
+                            format: int32
+                            type: integer
+                        type: object
+                    type: object
                   resources:
                     description: resources overrides the resource requests and limits
                       for the hermes-agent container.

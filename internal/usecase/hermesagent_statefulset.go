@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (u *HermesAgentUseCase) reconcileStatefulSet(ctx context.Context, ha *agentsv1alpha1.HermesAgent) error {
@@ -102,6 +103,114 @@ func (u *HermesAgentUseCase) buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *a
 	return sts
 }
 
+func (u *HermesAgentUseCase) buildLivenessProbe(spec *agentsv1alpha1.Probe) *corev1.Probe {
+	if spec == nil {
+		return nil
+	}
+	if !spec.IsEnabled() {
+		return nil
+	}
+
+	probe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health",
+				Port: intstr.FromString(gatewayPortName),
+			},
+		},
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       20,
+		TimeoutSeconds:      1,
+		FailureThreshold:    3,
+	}
+	if spec.InitialDelaySeconds != nil {
+		probe.InitialDelaySeconds = *spec.InitialDelaySeconds
+	}
+	if spec.PeriodSeconds != nil {
+		probe.PeriodSeconds = *spec.PeriodSeconds
+	}
+	if spec.TimeoutSeconds != nil {
+		probe.TimeoutSeconds = *spec.TimeoutSeconds
+	}
+	if spec.FailureThreshold != nil {
+		probe.FailureThreshold = *spec.FailureThreshold
+	}
+
+	return probe
+}
+
+func (u *HermesAgentUseCase) buildReadinessProbe(spec *agentsv1alpha1.Probe) *corev1.Probe {
+	if spec == nil {
+		return nil
+	}
+	if !spec.IsEnabled() {
+		return nil
+	}
+
+	probe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health",
+				Port: intstr.FromString(gatewayPortName),
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      1,
+		FailureThreshold:    3,
+	}
+	if spec.InitialDelaySeconds != nil {
+		probe.InitialDelaySeconds = *spec.InitialDelaySeconds
+	}
+	if spec.PeriodSeconds != nil {
+		probe.PeriodSeconds = *spec.PeriodSeconds
+	}
+	if spec.TimeoutSeconds != nil {
+		probe.TimeoutSeconds = *spec.TimeoutSeconds
+	}
+	if spec.FailureThreshold != nil {
+		probe.FailureThreshold = *spec.FailureThreshold
+	}
+
+	return probe
+}
+
+func (u *HermesAgentUseCase) buildStartupProbe(spec *agentsv1alpha1.Probe) *corev1.Probe {
+	if spec == nil {
+		return nil
+	}
+	if !spec.IsEnabled() {
+		return nil
+	}
+
+	probe := &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health",
+				Port: intstr.FromString(gatewayPortName),
+			},
+		},
+		InitialDelaySeconds: 0,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      1,
+		FailureThreshold:    10,
+	}
+	if spec.InitialDelaySeconds != nil {
+		probe.InitialDelaySeconds = *spec.InitialDelaySeconds
+	}
+	if spec.PeriodSeconds != nil {
+		probe.PeriodSeconds = *spec.PeriodSeconds
+	}
+	if spec.TimeoutSeconds != nil {
+		probe.TimeoutSeconds = *spec.TimeoutSeconds
+	}
+	if spec.FailureThreshold != nil {
+		probe.FailureThreshold = *spec.FailureThreshold
+	}
+
+	return probe
+}
+
 // buildHermesContainer populates the StatefulSet with all resources driven by the hermes spec:
 // the main hermes-agent container (env, envFrom), init containers for config and workspace,
 // and volumes/PVCs for persistence, bootstrap config, and shared memory.
@@ -133,6 +242,9 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 			EnvFrom:         ha.GetHermes().GetEnvFrom(),
 			Resources:       ha.GetHermes().GetResources(),
 			SecurityContext: sec.GetContainerSecurityContext(),
+			LivenessProbe:   u.buildLivenessProbe(ha.GetHermes().GetProbes().GetLiveness()),
+			ReadinessProbe:  u.buildReadinessProbe(ha.GetHermes().GetProbes().GetReadiness()),
+			StartupProbe:    u.buildStartupProbe(ha.GetHermes().GetProbes().GetStartup()),
 			VolumeMounts: append([]corev1.VolumeMount{
 				{Name: "dshm", MountPath: "/dev/shm"},
 				{Name: "data", MountPath: "/opt/data"},
