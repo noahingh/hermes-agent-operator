@@ -4,7 +4,10 @@ import (
 	"context"
 	"time"
 
+	agentsv1alpha1 "noahingh/hermes-agent-operator/api/v1alpha1"
+
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -27,7 +30,7 @@ func NewHermesAgentUseCase(kube Kubernetes, tel Telemetry) *HermesAgentUseCase {
 	}
 }
 
-func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam) error {
+func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam) (ctrl.Result, error) {
 	start := time.Now()
 	defer func() {
 		u.tel.ObserveReconcileDuration(ctx, ObserveReconcileDurationParam{Seconds: time.Since(start).Seconds()})
@@ -38,74 +41,84 @@ func (u *HermesAgentUseCase) Reconcile(ctx context.Context, param ReconcileParam
 	if err != nil {
 		u.tel.Error(ctx, err, "Failed to get HermesAgent", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	if ha == nil {
 		u.tel.Info(ctx, "HermesAgent not found", "namespacedName", param.NamespacedName)
 		u.tel.IncNotFound(ctx, IncNotFoundParam{})
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultNotFound})
-		return nil
+		return ctrl.Result{}, nil
 	}
 
 	if err := u.reconcileHermesConfigMap(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile Hermes ConfigMap", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "ConfigMap reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileSearXNGConfigMap(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile SearXNG ConfigMap", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "SearXNG ConfigMap reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileServiceAccount(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile ServiceAccount", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "ServiceAccount reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileRole(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile Role", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "Role reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileStatefulSet(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile StatefulSet", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "StatefulSet reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileService(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile Service", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "Service reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileIngress(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile Ingress", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "Ingress reconciled successfully", "namespacedName", param.NamespacedName)
 
 	if err := u.reconcileNetworkPolicy(ctx, ha); err != nil {
 		u.tel.Error(ctx, err, "Failed to reconcile NetworkPolicy", "namespacedName", param.NamespacedName)
 		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
-		return err
+		return ctrl.Result{}, err
 	}
 	u.tel.Info(ctx, "NetworkPolicy reconciled successfully", "namespacedName", param.NamespacedName)
 
+	if err := u.reconcileStatus(ctx, ha); err != nil {
+		u.tel.Error(ctx, err, "Failed to reconcile status", "namespacedName", param.NamespacedName)
+		u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultError})
+		return ctrl.Result{}, err
+	}
+
 	u.tel.Info(ctx, "Reconciliation completed successfully", "namespacedName", param.NamespacedName)
 	u.tel.IncReconcile(ctx, IncReconcileParam{Result: ResultSuccess})
-	return nil
+
+	if ha.Status.Phase == agentsv1alpha1.PhasePending || ha.Status.Phase == agentsv1alpha1.PhaseUnknown {
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+	return ctrl.Result{}, nil
 }
 
 func resultOf(err error) Result {
