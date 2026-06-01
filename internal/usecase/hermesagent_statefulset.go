@@ -227,7 +227,7 @@ func (u *HermesAgentUseCase) buildHermesContainer(ha *agentsv1alpha1.HermesAgent
 		hermesGatewayPort     = hermesGatewayPort
 		hermesDefaultPathEnv  = "/opt/data/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 		hermesPathEnv         = hermesDefaultPathEnv + ":/opt/hermes/.venv/bin"
-		hermesHomeVolume      = "hermes-home"
+		hermesHomeVolume      = "hermes-data"
 		hermesHomeMount       = "/opt/data"
 		hermesDSHMVolume      = "dshm"
 		hermesDSHMMount       = "/dev/shm"
