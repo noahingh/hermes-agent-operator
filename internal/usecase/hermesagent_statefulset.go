@@ -112,6 +112,22 @@ func buildStatefulSet(ha *agentsv1alpha1.HermesAgent) *appsv1.StatefulSet {
 	return sts
 }
 
+// buildInitContainerSecurityContext returns a security context with hermes user.
+func buildInitContainerSecurityContext() *corev1.SecurityContext {
+	// 10000 is hermes user and group ID in the official container image.
+	uid, gid := int64(10000), int64(10000)
+	rnt := true
+
+	return &corev1.SecurityContext{
+		RunAsNonRoot: &rnt,
+		RunAsUser:    &uid,
+		RunAsGroup:   &gid,
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+}
+
 // buildHermesContainer populates the StatefulSet with all resources driven by the hermes spec:
 // the main hermes-agent container (env, envFrom), init containers for config and workspace,
 // and volumes/PVCs for persistence, bootstrap config, and shared memory.
@@ -240,7 +256,7 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
 			},
-			SecurityContext: sec.GetContainerSecurityContext(),
+			SecurityContext: buildInitContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
 				{Name: hermesBootstrapVolume, MountPath: hermesBootstrapMount, ReadOnly: true},
@@ -262,7 +278,7 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
 			},
-			SecurityContext: sec.GetContainerSecurityContext(),
+			SecurityContext: buildInitContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
 				{Name: hermesBootstrapVolume, MountPath: hermesBootstrapMount, ReadOnly: true},
@@ -283,7 +299,7 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
 			},
-			SecurityContext: sec.GetContainerSecurityContext(),
+			SecurityContext: buildInitContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
 				{Name: hermesTmpVolume, MountPath: hermesTmpMount},
@@ -303,7 +319,7 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
 			},
-			SecurityContext: sec.GetContainerSecurityContext(),
+			SecurityContext: buildInitContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
 				{Name: hermesTmpVolume, MountPath: hermesTmpMount},
@@ -323,7 +339,7 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 				{Name: "HERMES_HOME", Value: "/opt/data"},
 				{Name: "PATH", Value: hermesPathEnv},
 			},
-			SecurityContext: sec.GetContainerSecurityContext(),
+			SecurityContext: buildInitContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
 				{Name: hermesTmpVolume, MountPath: hermesTmpMount},
@@ -343,7 +359,7 @@ func buildHermesContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSe
 				{Name: "HERMES_HOME", Value: hermesHomeMount},
 				{Name: "PATH", Value: hermesPathEnv},
 			},
-			SecurityContext: sec.GetContainerSecurityContext(),
+			SecurityContext: buildInitContainerSecurityContext(),
 			VolumeMounts: []corev1.VolumeMount{
 				{Name: hermesHomeVolume, MountPath: hermesHomeMount},
 				{Name: hermesTmpVolume, MountPath: hermesTmpMount},
@@ -366,18 +382,6 @@ func findContainer(sts *appsv1.StatefulSet, name string) *corev1.Container {
 		}
 	}
 	return nil
-}
-
-func searxngSecurityContext() *corev1.SecurityContext {
-	apeFalse, roFalse, rnt, nobody := false, false, true, int64(65534)
-	return &corev1.SecurityContext{
-		AllowPrivilegeEscalation: &apeFalse,
-		ReadOnlyRootFilesystem:   &roFalse, // SearXNG needs writable dirs
-		RunAsNonRoot:             &rnt,
-		RunAsUser:                &nobody, // nobody
-		Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-		SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-	}
 }
 
 func buildSearXNGContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
@@ -419,7 +423,6 @@ func buildSearXNGContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulS
 			{Name: searxngConfigVolume, MountPath: searxngConfigMount},
 			{Name: searxngCacheVolume, MountPath: searxngCacheMount},
 		},
-		SecurityContext: searxngSecurityContext(),
 	})
 
 	sts.Spec.Template.Spec.Volumes = append(sts.Spec.Template.Spec.Volumes, corev1.Volume{
@@ -462,18 +465,6 @@ func buildSearXNGContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulS
 	return sts
 }
 
-func camofoxSecurityContext() *corev1.SecurityContext {
-	apeFalse, roFalse, rnt, nobody := false, false, true, int64(65534)
-	return &corev1.SecurityContext{
-		AllowPrivilegeEscalation: &apeFalse,
-		ReadOnlyRootFilesystem:   &roFalse,
-		RunAsNonRoot:             &rnt,
-		RunAsUser:                &nobody, // nobody - headless-shell has no pre-created users
-		Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-		SeccompProfile:           &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
-	}
-}
-
 func buildCamofoxContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulSet) *appsv1.StatefulSet {
 	sts = sts.DeepCopy()
 
@@ -508,7 +499,6 @@ func buildCamofoxContainer(ha *agentsv1alpha1.HermesAgent, sts *appsv1.StatefulS
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: camofoxDataVolume, MountPath: camofoxDataMount},
 		},
-		SecurityContext: camofoxSecurityContext(),
 	})
 
 	// data: existingClaim > managed PVC > emptyDir fallback.
